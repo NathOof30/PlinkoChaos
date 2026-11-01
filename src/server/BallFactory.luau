@@ -274,19 +274,20 @@ function BallFactory.CreateBall(ballType: string?, owner: Player?, xOffset: numb
 			end
 		end)
 
-	elseif selectedType == "Spring" then
-		-- Bille ressort : légère aura lumineuse dynamique
+	elseif selectedType == "Slime" or selectedType == "Spring" then
+		-- Bille Slime : aura visqueuse et bulles bondissantes
 		local trailPart = Instance.new("ParticleEmitter")
-		trailPart.Name = "SpringPop"
+		trailPart.Name = "SlimeBubbles"
 		trailPart.Texture = "rbxassetid://6071575925"
-		trailPart.Color = ColorSequence.new(Color3.fromRGB(46, 255, 140))
+		trailPart.Color = ColorSequence.new(Color3.fromRGB(80, 255, 60))
 		trailPart.Size = NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 0.35),
-			NumberSequenceKeypoint.new(1, 0),
+			NumberSequenceKeypoint.new(0, 0.4),
+			NumberSequenceKeypoint.new(1, 0.05),
 		})
-		trailPart.Lifetime = NumberRange.new(0.2, 0.4)
-		trailPart.Rate = 12
-		trailPart.Speed = NumberRange.new(1, 2)
+		trailPart.Lifetime = NumberRange.new(0.25, 0.5)
+		trailPart.Rate = 16
+		trailPart.Speed = NumberRange.new(0.5, 2.0)
+		trailPart.SpreadAngle = Vector2.new(180, 180)
 		trailPart.Parent = ball
 
 	elseif selectedType == "Heavy" then

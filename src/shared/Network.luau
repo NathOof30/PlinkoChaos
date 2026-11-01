@@ -12,6 +12,13 @@ local ALL_REMOTE_EVENTS = {
 	"DeckSync",
 	"SlotStateChanged",
 	"ToggleBotSimulation",
+	"InventorySync",
+	"RequestBuyStandard",
+	"RequestUnlockBlueprint",
+	"RequestCraftBall",
+	"RequestEquipBall",
+	"RequestUnequipBall",
+	"InventoryFeedback",
 }
 
 local function getEventsFolder(): Folder

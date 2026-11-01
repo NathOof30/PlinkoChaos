@@ -82,27 +82,78 @@ local BoardConfig = {
 			ExplosionForce = 38.0, -- Force d'impulsion centrifuge surpuissante
 			Description = "Déclenche une déflagration au 5ème rebond avec clignotement progressif qui repousse violemment les billes alentour.",
 		},
-		Spring = {
-			Name = "Ressort",
-			Color = Color3.fromRGB(46, 255, 120), -- Vert fluo bondissant
+		Slime = {
+			Name = "Slime",
+			Color = Color3.fromRGB(80, 255, 60), -- Vert slime toxique / visqueux
 			Material = Enum.Material.Neon,
-			Density = 0.25, -- Ultra légère
+			Density = 0.30, -- Légère
 			Friction = 0.10,
-			Elasticity = 0.96, -- Rebond surpuissant
+			Elasticity = 0.95, -- Rebond extrême et chaotique
 			FrictionWeight = 0.8,
 			ElasticityWeight = 2.0,
-			Description = "Ultra légère et bondissante. Ricoche avec dynamisme sur chaque clou.",
+			Description = "Bille slime ultra rebondissante. Rebondit avec une énergie chaotique et imprévisible.",
+		},
+		Spring = {
+			Name = "Slime",
+			Color = Color3.fromRGB(80, 255, 60),
+			Material = Enum.Material.Neon,
+			Density = 0.30,
+			Friction = 0.10,
+			Elasticity = 0.95,
+			FrictionWeight = 0.8,
+			ElasticityWeight = 2.0,
+			Description = "Bille slime ultra rebondissante. Rebondit avec une énergie chaotique et imprévisible.",
 		},
 	},
 
-	-- Économie & Sauvegarde (Phase 3)
+	-- Économie & Sauvegarde (Phase 6 V2)
 	Economy = {
-		StartingCoins = 100, -- Pécule de départ pour tout nouveau joueur
-		DropCost = 10, -- Coût pour lâcher une bille standard
+		StartingCoins = 10, -- Pécule de départ selon GDD V2
+		DropCost = 10, -- Coût pour lâcher une bille
+		PassiveIncomeRate = 1, -- +1 Pièce / seconde (géré côté serveur)
+		StandardBallCost = 10, -- Achat d'une bille standard
 		DataStoreName = "PlinkoChaos_UserData_v1",
 	},
 
-	-- Système de Deck & Cooldown Physique (Phase 4)
+	-- Système d'Atelier de Craft & Blueprints (Phase 6)
+	Crafting = {
+		Blueprints = {
+			Slime = {
+				Name = "Bille Slime",
+				Cost = 500,
+				Tier = 2,
+				Description = "Rebond extrême, trajectoire ultra chaotique.",
+			},
+			Heavy = {
+				Name = "Bille Lourde",
+				Cost = 2000,
+				Tier = 3,
+				Description = "Masse imposante en fonte, repousse les autres billes.",
+			},
+			Explosive = {
+				Name = "Bille Explosive",
+				Cost = 8000,
+				Tier = 4,
+				Description = "Déflagration physique violente après 5 rebonds.",
+			},
+		},
+		Recipes = {
+			Slime = {
+				Standard = 5,
+			},
+			Heavy = {
+				Slime = 3,
+				Standard = 10,
+			},
+			Explosive = {
+				Heavy = 2,
+				Slime = 5,
+				Standard = 20,
+			},
+		},
+	},
+
+	-- Système de Deck & Cooldown Physique (Phase 4 & 6)
 	Deck = {
 		Size = 10, -- 10 emplacements de billes
 		DefaultBallType = "Standard",

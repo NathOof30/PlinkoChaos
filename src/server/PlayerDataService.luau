@@ -24,7 +24,9 @@ export type BallSlot = {
 export type PlayerData = {
 	Coins: number,
 	TotalDrops: number,
-	Deck: { [number]: BallSlot },
+	Inventory: { [string]: number },
+	Blueprints: { [string]: boolean },
+	Deck: { [number]: BallSlot? },
 }
 
 local PlayerDataService = {}
@@ -37,7 +39,7 @@ local sessionCache = {} :: { [number]: PlayerData }
 -- Non persisté dans le DataStore : à chaque connexion, tous les slots démarrent "Ready"
 local sessionSlotStates = {} :: { [number]: { [number]: string } }
 
--- Curseur séquentiel (round-robin) par joueur pour forcer l'utilisation de tout le deck (1 à 10)
+-- Curseur séquentiel (round-robin) par joueur pour forcer l'alternance des slots équipés
 local sessionSlotPointers = {} :: { [number]: number }
 
 local dataStore: any = nil
@@ -64,22 +66,37 @@ local function getDataStoreInstance()
 	return dataStore
 end
 
--- Création du Deck standard de 10 billes (Phase 5 : Équipement des 3 billes spéciales)
-local function createDefaultDeck(): { [number]: BallSlot }
-	local deck = {}
-	deck[1] = { ballType = "Heavy", level = 1 }
-	deck[2] = { ballType = "Explosive", level = 1 }
-	deck[3] = { ballType = "Spring", level = 1 }
-	for i = 4, 10 do
-		deck[i] = {
-			ballType = "Standard",
-			level = 1,
-		}
+-- Création du profil initial (Phase 6 V2 GDD) :
+-- Portefeuille: 10 Pièces | Inventaire: 1 Standard | Deck: 1 Standard (Slot 1, 9 slots vides)
+local function createDefaultProfile(): PlayerData
+	local BoardConfig = getConfig()
+	local startingCoins = (BoardConfig.Economy and BoardConfig.Economy.StartingCoins) or 10
+
+	local deck: { [number]: BallSlot? } = {}
+	deck[1] = { ballType = "Standard", level = 1 }
+	for i = 2, 10 do
+		deck[i] = nil
 	end
-	return deck
+
+	return {
+		Coins = startingCoins,
+		TotalDrops = 0,
+		Inventory = {
+			Standard = 1,
+			Slime = 0,
+			Heavy = 0,
+			Explosive = 0,
+		},
+		Blueprints = {
+			Slime = false,
+			Heavy = false,
+			Explosive = false,
+		},
+		Deck = deck,
+	}
 end
 
--- Création et synchronisation du leaderboard natif Roblox
+-- Synchronisation du leaderboard natif Roblox
 local function setupLeaderstats(player: Player, data: PlayerData)
 	local leaderstats = player:FindFirstChild("leaderstats")
 	if not leaderstats then
@@ -99,19 +116,41 @@ local function setupLeaderstats(player: Player, data: PlayerData)
 	end
 end
 
+-- Synchronisation du Deck avec le client
+function PlayerDataService.SyncDeck(player: Player)
+	local userId = player.UserId
+	local data = sessionCache[userId]
+	local states = sessionSlotStates[userId]
+	if not data or not states then
+		return
+	end
+
+	local deckSyncEvent = Network.GetRemoteEvent("DeckSync")
+	deckSyncEvent:FireClient(player, data.Deck, states)
+end
+
+-- Synchronisation de l'Inventaire, Blueprints et Pièces avec le client
+function PlayerDataService.SyncInventory(player: Player)
+	local userId = player.UserId
+	local data = sessionCache[userId]
+	if not data then
+		return
+	end
+
+	local invSyncEvent = Network.GetRemoteEvent("InventorySync")
+	invSyncEvent:FireClient(player, {
+		Inventory = data.Inventory,
+		Blueprints = data.Blueprints,
+		Coins = data.Coins,
+	})
+end
+
 -- Chargement des données à la connexion du joueur
 function PlayerDataService.LoadData(player: Player): PlayerData
-	local BoardConfig = getConfig()
-	local startingCoins = (BoardConfig.Economy and BoardConfig.Economy.StartingCoins) or 100
 	local userId = player.UserId
+	local defaultData = createDefaultProfile()
 
-	local defaultData: PlayerData = {
-		Coins = startingCoins,
-		TotalDrops = 0,
-		Deck = createDefaultDeck(),
-	}
-
-	-- Initialisation de l'état de session : tous les 10 slots sont Ready
+	-- Initialisation des états de session : tous les 10 slots démarrent Ready
 	local slotStates = {}
 	for i = 1, 10 do
 		slotStates[i] = "Ready"
@@ -133,43 +172,75 @@ function PlayerDataService.LoadData(player: Player): PlayerData
 		end)
 
 		if success and savedData and typeof(savedData) == "table" and savedData.Coins ~= nil then
-			-- Rétrocompatibilité : si le deck n'existait pas encore dans l'ancienne sauvegarde, on l'injecte
+			-- Migration et rétrocompatibilité des données existantes
+			local loadedInventory = savedData.Inventory
+			if not loadedInventory or typeof(loadedInventory) ~= "table" then
+				loadedInventory = {
+					Standard = 1,
+					Slime = 0,
+					Heavy = 0,
+					Explosive = 0,
+				}
+			else
+				loadedInventory.Standard = loadedInventory.Standard or 0
+				loadedInventory.Slime = loadedInventory.Slime or loadedInventory.Spring or 0
+				loadedInventory.Heavy = loadedInventory.Heavy or 0
+				loadedInventory.Explosive = loadedInventory.Explosive or 0
+			end
+
+			local loadedBlueprints = savedData.Blueprints
+			if not loadedBlueprints or typeof(loadedBlueprints) ~= "table" then
+				loadedBlueprints = {
+					Slime = false,
+					Heavy = false,
+					Explosive = false,
+				}
+			else
+				loadedBlueprints.Slime = loadedBlueprints.Slime or loadedBlueprints.Spring or false
+				loadedBlueprints.Heavy = loadedBlueprints.Heavy or false
+				loadedBlueprints.Explosive = loadedBlueprints.Explosive or false
+			end
+
 			local loadedDeck = savedData.Deck
+			local cleanDeck: { [number]: BallSlot? } = {}
 			if not loadedDeck or typeof(loadedDeck) ~= "table" then
-				loadedDeck = createDefaultDeck()
+				cleanDeck = defaultData.Deck
 			else
 				for i = 1, 10 do
-					if not loadedDeck[i] then
-						loadedDeck[i] = { ballType = "Standard", level = 1 }
+					local item = loadedDeck[i]
+					if item and typeof(item) == "table" and item.ballType then
+						local bType = item.ballType == "Spring" and "Slime" or item.ballType
+						cleanDeck[i] = {
+							ballType = bType,
+							level = item.level or 1,
+						}
+					else
+						cleanDeck[i] = nil
 					end
-				end
-				-- Phase 5 : Équipement automatique des 3 billes spéciales pour les tests
-				if loadedDeck[1].ballType == "Standard" and loadedDeck[2].ballType == "Standard" and loadedDeck[3].ballType == "Standard" then
-					loadedDeck[1] = { ballType = "Heavy", level = 1 }
-					loadedDeck[2] = { ballType = "Explosive", level = 1 }
-					loadedDeck[3] = { ballType = "Spring", level = 1 }
 				end
 			end
 
 			finalData = {
 				Coins = math.max(0, math.floor(savedData.Coins)),
 				TotalDrops = savedData.TotalDrops or 0,
-				Deck = loadedDeck,
+				Inventory = loadedInventory,
+				Blueprints = loadedBlueprints,
+				Deck = cleanDeck,
 			}
-			print(string.format("[PlinkoChaos] 💾 Données chargées depuis DataStore pour %s : %d Pièces, Deck prêt (10 slots)", player.Name, finalData.Coins))
+			print(string.format("[PlinkoChaos] 💾 Données chargées depuis DataStore pour %s : %d Pièces", player.Name, finalData.Coins))
 		else
 			finalData = defaultData
-			print(string.format("[PlinkoChaos] 🌟 Nouveau joueur %s ! Pécule de départ offert : %d Pièces, Deck 10 slots initialisé", player.Name, startingCoins))
+			print(string.format("[PlinkoChaos] 🌟 Nouveau joueur %s ! Profil initial créé (10 Pièces, 1 Standard en stock, 1 Standard équipée)", player.Name))
 		end
 
 		sessionCache[userId] = finalData
 		setupLeaderstats(player, finalData)
 	end
 
-	-- Envoi de la synchronisation complète du Deck au client
+	-- Envoi initial de la synchronisation Deck et Inventaire au client
 	task.defer(function()
-		local deckSyncEvent = Network.GetRemoteEvent("DeckSync")
-		deckSyncEvent:FireClient(player, finalData.Deck, sessionSlotStates[userId])
+		PlayerDataService.SyncDeck(player)
+		PlayerDataService.SyncInventory(player)
 	end)
 
 	return finalData
@@ -187,6 +258,7 @@ function PlayerDataService.SaveData(player: Player)
 	if not isDataStoreAvailable or not ds then
 		sessionCache[userId] = nil
 		sessionSlotStates[userId] = nil
+		sessionSlotPointers[userId] = nil
 		return
 	end
 
@@ -194,6 +266,8 @@ function PlayerDataService.SaveData(player: Player)
 		ds:SetAsync("Player_" .. userId, {
 			Coins = data.Coins,
 			TotalDrops = data.TotalDrops,
+			Inventory = data.Inventory,
+			Blueprints = data.Blueprints,
 			Deck = data.Deck,
 		})
 	end)
@@ -209,8 +283,9 @@ function PlayerDataService.SaveData(player: Player)
 	sessionSlotPointers[userId] = nil
 end
 
--- API de consultation du Deck et des États
-function PlayerDataService.GetDeck(player: Player): { [number]: BallSlot }?
+-- ==================== API DU DECK & DES SLOTS ====================
+
+function PlayerDataService.GetDeck(player: Player): { [number]: BallSlot? }?
 	local data = sessionCache[player.UserId]
 	return data and data.Deck
 end
@@ -220,16 +295,21 @@ function PlayerDataService.GetSlotStates(player: Player): { [number]: string }?
 end
 
 function PlayerDataService.IsSlotReady(player: Player, slotIndex: number): boolean
+	local data = sessionCache[player.UserId]
 	local states = sessionSlotStates[player.UserId]
-	return states ~= nil and states[slotIndex] == "Ready"
+	if not data or not data.Deck or not states then
+		return false
+	end
+	-- Doit contenir une bille ET être à l'état Ready
+	return data.Deck[slotIndex] ~= nil and states[slotIndex] == "Ready"
 end
 
 -- Sélection séquentielle circulaire (Round-Robin) des slots :
--- Permet de jouer l'ensemble des 10 billes (1 -> 10) sans qu'une bille déjà rentrée
--- au début du deck ne court-circuite les slots 8, 9 ou 10 lors d'un spam de lâchers.
+-- Ne parcourt QUE les slots équipés d'une bille et en état "Ready"
 function PlayerDataService.GetNextReadySlot(player: Player): number?
 	local states = sessionSlotStates[player.UserId]
-	if not states then
+	local data = sessionCache[player.UserId]
+	if not states or not data or not data.Deck then
 		return nil
 	end
 
@@ -237,18 +317,13 @@ function PlayerDataService.GetNextReadySlot(player: Player): number?
 
 	for offset = 1, 10 do
 		local candidate = ((currentPointer - 1 + offset) % 10) + 1
-		if states[candidate] == "Ready" then
+		if data.Deck[candidate] ~= nil and states[candidate] == "Ready" then
 			sessionSlotPointers[player.UserId] = candidate
 			return candidate
 		end
 	end
 
 	return nil
-end
-
--- Rétrocompatibilité
-function PlayerDataService.GetFirstReadySlot(player: Player): number?
-	return PlayerDataService.GetNextReadySlot(player)
 end
 
 function PlayerDataService.SetSlotPointer(player: Player, slotIndex: number)
@@ -269,12 +344,170 @@ function PlayerDataService.SetSlotState(player: Player, slotIndex: number, newSt
 
 	states[slotIndex] = newState
 
-	-- Notification temps-réel au client pour mettre à jour l'interface (grisé vs actif)
 	local slotStateChangedEvent = Network.GetRemoteEvent("SlotStateChanged")
 	slotStateChangedEvent:FireClient(player, slotIndex, newState)
 end
 
--- API Monétaire
+-- Équiper une bille de l'inventaire vers un slot du Deck
+function PlayerDataService.EquipBall(player: Player, ballType: string, targetSlotIndex: number?): (boolean, string)
+	local userId = player.UserId
+	local data = sessionCache[userId]
+	if not data or not data.Inventory or not data.Deck then
+		return false, "Profil joueur non chargé."
+	end
+
+	local inStock = data.Inventory[ballType] or 0
+	if inStock <= 0 then
+		return false, string.format("Tu ne possèdes aucune bille %s en stock !", ballType)
+	end
+
+	-- Déterminer le slot cible
+	local destSlot: number?
+	if targetSlotIndex and targetSlotIndex >= 1 and targetSlotIndex <= 10 then
+		if data.Deck[targetSlotIndex] == nil then
+			destSlot = targetSlotIndex
+		else
+			return false, string.format("L'emplacement #%d est déjà occupé !", targetSlotIndex)
+		end
+	else
+		-- Premier slot vide disponible
+		for i = 1, 10 do
+			if data.Deck[i] == nil then
+				destSlot = i
+				break
+			end
+		end
+	end
+
+	if not destSlot then
+		return false, "Ton Deck est plein (10/10) ! Retire une bille avant d'en équiper une nouvelle."
+	end
+
+	-- Transfert sécurisé : Inventaire -> Deck
+	data.Inventory[ballType] -= 1
+	data.Deck[destSlot] = {
+		ballType = ballType,
+		level = 1,
+	}
+
+	local states = sessionSlotStates[userId]
+	if states then
+		states[destSlot] = "Ready"
+	end
+
+	PlayerDataService.SyncDeck(player)
+	PlayerDataService.SyncInventory(player)
+
+	return true, string.format("Bille %s équipée sur l'emplacement #%d !", ballType, destSlot)
+end
+
+-- Déséquiper une bille du Deck vers l'inventaire
+function PlayerDataService.UnequipBall(player: Player, slotIndex: number): (boolean, string)
+	local userId = player.UserId
+	local data = sessionCache[userId]
+	local states = sessionSlotStates[userId]
+	if not data or not data.Deck or not states then
+		return false, "Profil joueur non chargé."
+	end
+
+	if slotIndex < 1 or slotIndex > 10 then
+		return false, "Emplacement invalide."
+	end
+
+	local currentSlot = data.Deck[slotIndex]
+	if not currentSlot then
+		return false, "Cet emplacement est déjà vide !"
+	end
+
+	-- Sécurité anti-exploit : interdiction de retirer une bille qui est en train de tomber
+	if states[slotIndex] ~= "Ready" then
+		return false, "Cette bille est en jeu ! Attends qu'elle atterrisse pour la retirer."
+	end
+
+	local ballType = currentSlot.ballType
+
+	-- Transfert sécurisé : Deck -> Inventaire
+	data.Deck[slotIndex] = nil
+	data.Inventory[ballType] = (data.Inventory[ballType] or 0) + 1
+
+	PlayerDataService.SyncDeck(player)
+	PlayerDataService.SyncInventory(player)
+
+	return true, string.format("Bille %s renvoyée dans l'inventaire !", ballType)
+end
+
+-- ==================== API INVENTAIRE, BLUEPRINTS & CRAFT ====================
+
+function PlayerDataService.GetInventory(player: Player): { [string]: number }?
+	local data = sessionCache[player.UserId]
+	return data and data.Inventory
+end
+
+function PlayerDataService.GetBlueprints(player: Player): { [string]: boolean }?
+	local data = sessionCache[player.UserId]
+	return data and data.Blueprints
+end
+
+function PlayerDataService.AddInventory(player: Player, ballType: string, count: number)
+	local data = sessionCache[player.UserId]
+	if not data or not data.Inventory or count <= 0 then
+		return
+	end
+	data.Inventory[ballType] = (data.Inventory[ballType] or 0) + count
+	PlayerDataService.SyncInventory(player)
+end
+
+function PlayerDataService.RemoveInventory(player: Player, ballType: string, count: number): boolean
+	local data = sessionCache[player.UserId]
+	if not data or not data.Inventory or count <= 0 then
+		return false
+	end
+	local current = data.Inventory[ballType] or 0
+	if current < count then
+		return false
+	end
+	data.Inventory[ballType] = current - count
+	PlayerDataService.SyncInventory(player)
+	return true
+end
+
+function PlayerDataService.UnlockBlueprint(player: Player, blueprintId: string): (boolean, string)
+	local data = sessionCache[player.UserId]
+	if not data or not data.Blueprints then
+		return false, "Profil joueur introuvable."
+	end
+
+	if data.Blueprints[blueprintId] == true then
+		return false, "Tu possèdes déjà ce plan de fabrication !"
+	end
+
+	local BoardConfig = getConfig()
+	local bpConfig = BoardConfig.Crafting and BoardConfig.Crafting.Blueprints and BoardConfig.Crafting.Blueprints[blueprintId]
+	if not bpConfig then
+		return false, "Ce plan de fabrication n'existe pas."
+	end
+
+	local cost = bpConfig.Cost or 500
+	if data.Coins < cost then
+		return false, string.format("Pièces insuffisantes (%d/%d) pour débloquer ce plan !", data.Coins, cost)
+	end
+
+	-- Déduction et activation
+	data.Coins -= cost
+	data.Blueprints[blueprintId] = true
+
+	local leaderstats = player:FindFirstChild("leaderstats")
+	local coinsVal = leaderstats and leaderstats:FindFirstChild("Pièces") :: IntValue?
+	if coinsVal then
+		coinsVal.Value = data.Coins
+	end
+
+	PlayerDataService.SyncInventory(player)
+	return true, string.format("Plan de fabrication '%s' débloqué avec succès !", bpConfig.Name)
+end
+
+-- ==================== API MONÉTAIRE & REVENU PASSIF ====================
+
 function PlayerDataService.GetCoins(player: Player): number
 	local data = sessionCache[player.UserId]
 	return data and data.Coins or 0
@@ -302,6 +535,8 @@ function PlayerDataService.AddCoins(player: Player, amount: number)
 	if coinsVal then
 		coinsVal.Value = data.Coins
 	end
+
+	PlayerDataService.SyncInventory(player)
 end
 
 function PlayerDataService.RemoveCoins(player: Player, amount: number): boolean
@@ -322,6 +557,7 @@ function PlayerDataService.RemoveCoins(player: Player, amount: number): boolean
 		coinsVal.Value = data.Coins
 	end
 
+	PlayerDataService.SyncInventory(player)
 	return true
 end
 
@@ -332,7 +568,8 @@ function PlayerDataService.RegisterDrop(player: Player)
 	end
 end
 
--- Initialisation globale
+-- ==================== INITIALISATION & REVENU PASSIF ====================
+
 function PlayerDataService.Init()
 	if isInitialized then
 		return
@@ -357,14 +594,32 @@ function PlayerDataService.Init()
 
 	-- Sauvegarde de sécurité à l'arrêt du serveur
 	game:BindToClose(function()
-		print("[PlinkoChaos] 🛑 Arrêt serveur : Sauvegarde de tous les joueurs en cours...")
+		print("[PlinkoChaos] 🛑 Arrêt serveur : Sauvegarde de tous les profils joueurs en cours...")
 		for _, player in ipairs(Players:GetPlayers()) do
 			PlayerDataService.SaveData(player)
 		end
 		print("[PlinkoChaos] ✅ Sauvegardes terminées.")
 	end)
 
-	print("[PlinkoChaos] 💰 PlayerDataService initialisé (Deck 10 slots & Cooldown physique intégrés).")
+	-- Revenu passif serveur (+1 Pièce / seconde) anti-softlock, discret et silencieux
+	task.spawn(function()
+		while true do
+			task.wait(1)
+			for _, player in ipairs(Players:GetPlayers()) do
+				local data = sessionCache[player.UserId]
+				if data then
+					data.Coins += 1
+					local leaderstats = player:FindFirstChild("leaderstats")
+					local coinsVal = leaderstats and leaderstats:FindFirstChild("Pièces") :: IntValue?
+					if coinsVal then
+						coinsVal.Value = data.Coins
+					end
+				end
+			end
+		end
+	end)
+
+	print("[PlinkoChaos] 💰 PlayerDataService initialisé (Phase 6 V2 : Deck 10 slots, Inventaire, Craft & Revenu passif +1/s).")
 end
 
 return PlayerDataService

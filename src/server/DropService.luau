@@ -36,6 +36,11 @@ function DropService.Init()
 		-- 1. Résolution du Slot de bille : slot spécifique ou prochain slot séquentiel (Round-Robin)
 		local targetSlotIndex: number?
 		if typeof(requestedSlot) == "number" and requestedSlot >= 1 and requestedSlot <= 10 then
+			local deck = PlayerDataService.GetDeck(player)
+			if not deck or deck[requestedSlot] == nil then
+				dropFailedEvent:FireClient(player, string.format("L'emplacement #%d est vide ! Ouvre l'inventaire pour équiper une bille.", requestedSlot))
+				return
+			end
 			if PlayerDataService.IsSlotReady(player, requestedSlot) then
 				targetSlotIndex = requestedSlot
 				PlayerDataService.SetSlotPointer(player, requestedSlot)
@@ -46,8 +51,7 @@ function DropService.Init()
 		else
 			targetSlotIndex = PlayerDataService.GetNextReadySlot(player)
 			if not targetSlotIndex then
-				dropFailedEvent:FireClient(player, "Toutes tes 10 billes sont en jeu ! Attends un atterrissage.")
-				print(string.format("[PlinkoChaos] ⏳ %s a tous ses 10 slots occupés sur le plateau", player.Name))
+				dropFailedEvent:FireClient(player, "Aucune bille prête ! Équipe une bille depuis l'inventaire ou attends un atterrissage.")
 				return
 			end
 		end

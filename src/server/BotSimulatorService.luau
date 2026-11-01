@@ -21,7 +21,7 @@ local BALL_CHOICES = {
 	"Standard",
 	"Heavy",
 	"Explosive",
-	"Spring",
+	"Slime",
 }
 
 function BotSimulatorService.Init()
