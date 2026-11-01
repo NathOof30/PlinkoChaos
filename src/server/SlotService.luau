@@ -49,7 +49,8 @@ local function onSlotTouched(pad: Part, hit: BasePart)
 	local amountText = ""
 
 	local player = Players:GetPlayerByUserId(ownerUserId)
-	local playerName = player and player.Name or (ownerUserId == 0 and "Serveur/Test" or string.format("Joueur_%d", ownerUserId))
+	local ownerNameAttr = hit:GetAttribute("OwnerName")
+	local playerName = player and (player.DisplayName or player.Name) or (ownerNameAttr or (ownerUserId == 0 and "Serveur/Test" or string.format("Joueur_%d", ownerUserId)))
 
 	if isPenalty then
 		-- Bille x0.5 : restitution de 5 pièces sur les 10 dépensées au drop (perte nette de 5 pièces)

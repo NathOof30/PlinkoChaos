@@ -15,6 +15,7 @@ local requestReliefEvent = Network.GetRemoteEvent("RequestRelief")
 local ballScoredEvent = Network.GetRemoteEvent("BallScored")
 local deckSyncEvent = Network.GetRemoteEvent("DeckSync")
 local slotStateChangedEvent = Network.GetRemoteEvent("SlotStateChanged")
+local toggleBotSimulationEvent = Network.GetRemoteEvent("ToggleBotSimulation")
 
 -- 1. Interface Joueur : Barre de Deck & Commandes
 local screenGui = Instance.new("ScreenGui")
@@ -263,6 +264,47 @@ reliefCorner.Parent = reliefButton
 
 reliefButton.MouseButton1Click:Connect(function()
 	requestReliefEvent:FireServer()
+end)
+
+-- Bouton Développeur : Simulateur Multijoueur (3 joueurs IA)
+local devSimButton = Instance.new("TextButton")
+devSimButton.Name = "DevBotSimButton"
+devSimButton.Size = UDim2.new(0, 195, 0, 36)
+devSimButton.AnchorPoint = Vector2.new(1, 0)
+devSimButton.Position = UDim2.new(1, -16, 0, 16)
+devSimButton.BackgroundColor3 = Color3.fromRGB(30, 34, 46)
+devSimButton.Text = "🤖 Simuler 3 Joueurs [OFF]"
+devSimButton.Font = Enum.Font.GothamBold
+devSimButton.TextSize = 12
+devSimButton.TextColor3 = Color3.fromRGB(195, 210, 235)
+devSimButton.AutoButtonColor = true
+devSimButton.Parent = screenGui
+
+local devSimCorner = Instance.new("UICorner")
+devSimCorner.CornerRadius = UDim.new(0, 8)
+devSimCorner.Parent = devSimButton
+
+local devSimStroke = Instance.new("UIStroke")
+devSimStroke.Color = Color3.fromRGB(65, 75, 100)
+devSimStroke.Thickness = 1.5
+devSimStroke.Parent = devSimButton
+
+local isSimActive = false
+devSimButton.MouseButton1Click:Connect(function()
+	toggleBotSimulationEvent:FireServer()
+end)
+
+toggleBotSimulationEvent.OnClientEvent:Connect(function(active: boolean)
+	isSimActive = active
+	if isSimActive then
+		devSimButton.BackgroundColor3 = Color3.fromRGB(38, 125, 68)
+		devSimButton.Text = "🤖 3 Joueurs Actifs [STOP]"
+		devSimStroke.Color = Color3.fromRGB(46, 204, 113)
+	else
+		devSimButton.BackgroundColor3 = Color3.fromRGB(30, 34, 46)
+		devSimButton.Text = "🤖 Simuler 3 Joueurs [OFF]"
+		devSimStroke.Color = Color3.fromRGB(65, 75, 100)
+	end
 end)
 
 -- Déclenchement du lâcher global (prend le premier slot Ready disponible)

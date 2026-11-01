@@ -7,6 +7,7 @@ local BoardBuilder = require(ServerScriptService.Server.BoardBuilder)
 local PlayerDataService = require(ServerScriptService.Server.PlayerDataService)
 local DropService = require(ServerScriptService.Server.DropService)
 local SlotService = require(ServerScriptService.Server.SlotService)
+local BotSimulatorService = require(ServerScriptService.Server.BotSimulatorService)
 
 -- 1. Initialise le réseau (création de tous les RemoteEvents pour éviter tout blocage client)
 Network.InitServer()
@@ -20,5 +21,6 @@ end
 PlayerDataService.Init()
 DropService.Init()
 SlotService.Init()
+BotSimulatorService.Init()
 
 print("[PlinkoChaos] 🚀 Phase 5 opérationnelle : Billes Spéciales (Lourde, Explosive, Ressort) & Deck 10 slots !")

@@ -78,8 +78,8 @@ local BoardConfig = {
 			FrictionWeight = 1.0,
 			ElasticityWeight = 1.0,
 			MaxBounces = 5, -- Explose au 5ème rebond (sécurité augmentée)
-			ExplosionRadius = 8.0, -- Rayon de répulsion
-			ExplosionForce = 22.0, -- Force d'impulsion centrifuge modérée et bornée
+			ExplosionRadius = 11.5, -- Rayon de déflagration étendu pour un effet spectaculaire
+			ExplosionForce = 38.0, -- Force d'impulsion centrifuge surpuissante
 			Description = "Déclenche une déflagration au 5ème rebond avec clignotement progressif qui repousse violemment les billes alentour.",
 		},
 		Spring = {

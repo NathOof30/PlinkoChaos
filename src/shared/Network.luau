@@ -11,6 +11,7 @@ local ALL_REMOTE_EVENTS = {
 	"BallScored",
 	"DeckSync",
 	"SlotStateChanged",
+	"ToggleBotSimulation",
 }
 
 local function getEventsFolder(): Folder

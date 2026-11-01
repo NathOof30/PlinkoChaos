@@ -98,16 +98,19 @@ local function triggerBallExplosion(ball: Part, profile: any)
 				local len2D = math.sqrt(dirX * dirX + dirY * dirY)
 				local unit2D = len2D > 0.05 and Vector2.new(dirX / len2D, dirY / len2D) or Vector2.new(math.random() > 0.5 and 1 or -1, 0)
 
-				local pushDir = Vector3.new(unit2D.X * 0.95, math.clamp(unit2D.Y * 0.5, -0.15, 0.4), 0).Unit
-				local falloff = math.clamp(1 - (dist / radius), 0.2, 1.0)
-				-- Vitesse d'impulsion bornée pour un punch spectaculaire sans traverser la géométrie
-				local targetVel = math.clamp(baseForce * falloff * 3.4, 25, 85)
+				local pushDir = Vector3.new(unit2D.X * 0.95, math.clamp(unit2D.Y * 0.5, -0.2, 0.4), 0).Unit
+				local falloff = math.clamp(1 - (dist / radius), 0.25, 1.0)
+				-- Vitesse d'impulsion augmentée pour une dispersion violente et spectaculaire
+				local targetVel = math.clamp(baseForce * falloff * 4.2, 50, 160)
 				local impulse = pushDir * (targetVel * other.AssemblyMass)
 				other:ApplyImpulse(impulse)
 				pushedCount += 1
 			end
 		end
 	end
+
+	-- Impulsion de recul sur la bille explosive elle-même
+	ball:ApplyImpulse(Vector3.new((math.random() - 0.5) * 35, -12, 0) * ball.AssemblyMass)
 
 	-- 3. Mise à jour de l'apparence de la bille explosive (calcinée après explosion)
 	ball.Material = Enum.Material.Slate
