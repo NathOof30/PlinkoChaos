@@ -41,7 +41,7 @@ local BoardConfig = {
 		Color = Color3.fromRGB(225, 228, 235), -- Blanc gris métallique (acier brossé)
 		BaseValue = 10, -- Valeur de base d'une bille en pièces
 		DefaultSpawnOffset = 0.5, -- Légèrement décentré pour amorcer le premier choix
-		MaxLifetime = 25, -- Sécurité anti-blocage (secondes)
+		MaxLifetime = 30, -- Sécurité anti-blocage (secondes)
 	},
 
 	-- Profils des types de billes spéciales (Phase 5)
@@ -77,10 +77,10 @@ local BoardConfig = {
 			Elasticity = 0.45,
 			FrictionWeight = 1.0,
 			ElasticityWeight = 1.0,
-			MaxBounces = 3, -- Explose au 3ème rebond
-			ExplosionRadius = 7.5, -- Rayon de répulsion
-			ExplosionForce = 26.0, -- Force d'impulsion centrifuge
-			Description = "Déclenche une déflagration au 3ème rebond qui repousse violemment les billes alentour.",
+			MaxBounces = 5, -- Explose au 5ème rebond (sécurité augmentée)
+			ExplosionRadius = 8.0, -- Rayon de répulsion
+			ExplosionForce = 22.0, -- Force d'impulsion centrifuge modérée et bornée
+			Description = "Déclenche une déflagration au 5ème rebond avec clignotement progressif qui repousse violemment les billes alentour.",
 		},
 		Spring = {
 			Name = "Ressort",

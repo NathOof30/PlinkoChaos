@@ -154,6 +154,16 @@ function BoardBuilder.Build(): Model
 	leftSlopedWall.CFrame = CFrame.new(leftCenter) * CFrame.Angles(0, 0, -theta)
 	leftSlopedWall.Parent = frameFolder
 
+	-- Plafond supérieur de sécurité (bloque toute bille propulsée vers le haut lors d'une explosion)
+	local ceiling = Instance.new("Part")
+	ceiling.Name = "TopCeiling"
+	ceiling.Anchored = true
+	ceiling.Material = Enum.Material.SmoothPlastic
+	ceiling.Color = frame.WallColor
+	ceiling.Size = Vector3.new(2 * xInnerTop + 2 * wallThickness, wallThickness, depth)
+	ceiling.CFrame = CFrame.new(center.X, chuteTopY + wallThickness / 2, center.Z)
+	ceiling.Parent = frameFolder
+
 	-- Parois verticales entourant les bacs (en dessous de slotTopY, s'alignent au pixel près)
 	local slotWallHalfW = xInnerBottom
 	local leftSlotWall = Instance.new("Part")

@@ -134,26 +134,41 @@ function SlotService.Init()
 	end
 	CollectionService:GetInstanceAddedSignal("PlinkoSlot"):Connect(connectSlot)
 
-	-- Watchdog de sécurité anti-blocage (nettoie les billes coincées après timeout)
+	-- Watchdog de sécurité anti-blocage et détection de sortie de plateau
 	task.spawn(function()
-		local maxLifetime = (BoardConfig.Ball and BoardConfig.Ball.MaxLifetime) or 20
+		local maxLifetime = (BoardConfig.Ball and BoardConfig.Ball.MaxLifetime) or 30
+		local center = BoardConfig.CenterPosition or Vector3.new(0, 50, 0)
+		local bottomLimit = center.Y - (BoardConfig.PlayableHeight or 66) / 2 - 5 -- Y < 12
+		local topLimit = center.Y + (BoardConfig.PlayableHeight or 66) / 2 + 15 -- Y > 98
+		local xLimit = (BoardConfig.PlayableWidth or 52) / 2 + 12 -- |X| > 38
+
 		while true do
-			task.wait(3)
+			task.wait(1.0)
 			local activeFolder = workspace:FindFirstChild("ActiveBalls")
 			if activeFolder then
 				local now = os.clock()
 				for _, ball in ipairs(activeFolder:GetChildren()) do
 					if ball:IsA("BasePart") then
 						local spawnTime = ball:GetAttribute("SpawnTime")
-						if spawnTime and (now - spawnTime > maxLifetime) then
-							local deckSlotIndex = ball:GetAttribute("DeckSlotIndex")
-							local ownerUserId = ball:GetAttribute("OwnerUserId")
-							local player = ownerUserId and Players:GetPlayerByUserId(ownerUserId)
+						local deckSlotIndex = ball:GetAttribute("DeckSlotIndex")
+						local ownerUserId = ball:GetAttribute("OwnerUserId")
+						local player = ownerUserId and Players:GetPlayerByUserId(ownerUserId)
+						local pos = ball.Position
+
+						local isOutOfBounds = (pos.Y < bottomLimit) or (pos.Y > topLimit)
+							or (math.abs(pos.X - center.X) > xLimit)
+							or (math.abs(pos.Z - center.Z) > 8)
+
+						local isTimedOut = spawnTime and (now - spawnTime > maxLifetime)
+
+						if (isOutOfBounds or isTimedOut) and ball:GetAttribute("Processed") ~= true then
+							ball:SetAttribute("Processed", true)
 							if player and typeof(deckSlotIndex) == "number" then
 								PlayerDataService.SetSlotState(player, deckSlotIndex, "Ready")
 							end
-							warn(string.format("[PlinkoChaos] ⚠️ Watchdog : Bille %s nettoyée pour timeout (>%ds), Slot #%s libéré",
-								ball.Name, maxLifetime, tostring(deckSlotIndex)))
+							local reason = isOutOfBounds and "Sortie de limites" or string.format("Timeout (>%ds)", maxLifetime)
+							print(string.format("[PlinkoChaos] 🛡️ Sécurité Watchdog : Bille %s récupérée (%s), Slot #%s réarmé dans le Deck.",
+								ball.Name, reason, tostring(deckSlotIndex)))
 							ball:Destroy()
 						end
 					end

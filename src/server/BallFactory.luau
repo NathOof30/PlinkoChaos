@@ -92,11 +92,17 @@ local function triggerBallExplosion(ball: Part, profile: any)
 			local delta = other.Position - position
 			local dist = delta.Magnitude
 			if dist <= radius and dist > 0.1 then
-				-- Vecteur de propulsion radial avec légère poussée vers le haut
-				local dir = (delta.Unit + Vector3.new(0, 0.35, 0)).Unit
-				local falloff = math.clamp(1 - (dist / radius), 0.15, 1.0)
-				-- Impulsion proportionnelle à la masse pour un effet net quel que soit le type de la bille voisine
-				local impulse = dir * (baseForce * other.AssemblyMass * falloff * 38)
+				-- Vecteur de propulsion principalement latéral et modéré en hauteur pour éviter les sorties par le haut
+				local dirX = delta.X
+				local dirY = delta.Y
+				local len2D = math.sqrt(dirX * dirX + dirY * dirY)
+				local unit2D = len2D > 0.05 and Vector2.new(dirX / len2D, dirY / len2D) or Vector2.new(math.random() > 0.5 and 1 or -1, 0)
+
+				local pushDir = Vector3.new(unit2D.X * 0.95, math.clamp(unit2D.Y * 0.5, -0.15, 0.4), 0).Unit
+				local falloff = math.clamp(1 - (dist / radius), 0.2, 1.0)
+				-- Vitesse d'impulsion bornée pour un punch spectaculaire sans traverser la géométrie
+				local targetVel = math.clamp(baseForce * falloff * 3.4, 25, 85)
+				local impulse = pushDir * (targetVel * other.AssemblyMass)
 				other:ApplyImpulse(impulse)
 				pushedCount += 1
 			end
@@ -153,11 +159,14 @@ function BallFactory.CreateBall(ballType: string?, owner: Player?, xOffset: numb
 	)
 	ball.CustomPhysicalProperties = physProps
 
-	-- Métadonnées de gameplay pour le cycle de vie
+	-- Métadonnées de gameplay pour le cycle de vie et le multijoueur
 	local ownerUserId = owner and owner.UserId or 0
+	local ownerName = owner and (owner.DisplayName or owner.Name) or (ownerUserId == 0 and "Serveur" or string.format("Joueur_%d", ownerUserId))
+
 	ball:SetAttribute("BallId", ballId)
 	ball:SetAttribute("BallType", selectedType)
 	ball:SetAttribute("OwnerUserId", ownerUserId)
+	ball:SetAttribute("OwnerName", ownerName)
 	ball:SetAttribute("BaseValue", ballCfg.BaseValue or 10)
 	ball:SetAttribute("SpawnTime", os.clock())
 	ball:SetAttribute("Processed", false)
@@ -175,7 +184,7 @@ function BallFactory.CreateBall(ballType: string?, owner: Player?, xOffset: numb
 			ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 60, 20)),
 		})
 		fuse.Size = NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 0.45),
+			NumberSequenceKeypoint.new(0, 0.35),
 			NumberSequenceKeypoint.new(1, 0.05),
 		})
 		fuse.Transparency = NumberSequence.new({
@@ -183,15 +192,36 @@ function BallFactory.CreateBall(ballType: string?, owner: Player?, xOffset: numb
 			NumberSequenceKeypoint.new(1, 0.8),
 		})
 		fuse.Lifetime = NumberRange.new(0.2, 0.35)
-		fuse.Rate = 22
+		fuse.Rate = 20
 		fuse.Speed = NumberRange.new(1.5, 3.5)
 		fuse.SpreadAngle = Vector2.new(180, 180)
 		fuse.Parent = ball
 
-		-- Gestionnaire des 3 rebonds
+		-- Gestionnaire des 5 rebonds et clignotement progressif
 		local bounceCount = 0
-		local maxBounces = typeProfile.MaxBounces or 3
+		local maxBounces = typeProfile.MaxBounces or 5
 		local lastBounceTime = 0
+		local blinkFrequency = 0 -- Hz (0 = pas de clignotement, augmente avec les rebonds)
+		local isStrobeOn = false
+
+		-- Boucle de clignotement dynamique qui s'accélère au fil des rebonds
+		task.spawn(function()
+			while ball and ball.Parent and ball:GetAttribute("HasExploded") ~= true do
+				if blinkFrequency > 0 then
+					isStrobeOn = not isStrobeOn
+					if isStrobeOn then
+						-- Flash jaune / blanc incandescent d'alerte
+						ball.Color = Color3.fromRGB(255, 245, 80)
+					else
+						-- Retour couleur orange flamme
+						ball.Color = typeProfile.Color
+					end
+					task.wait(0.5 / blinkFrequency)
+				else
+					task.wait(0.1)
+				end
+			end
+		end)
 
 		local touchConn: RBXScriptConnection? = nil
 		touchConn = ball.Touched:Connect(function(hit)
@@ -202,7 +232,7 @@ function BallFactory.CreateBall(ballType: string?, owner: Player?, xOffset: numb
 				return
 			end
 
-			-- On ignore le contact avec la vitre avant de protection
+			-- On ignore le contact avec la vitre avant de protection et le fond
 			if hit.Name == "FrontGlass" or hit.Name == "Backboard" then
 				return
 			end
@@ -216,17 +246,24 @@ function BallFactory.CreateBall(ballType: string?, owner: Player?, xOffset: numb
 			bounceCount += 1
 			ball:SetAttribute("BounceCount", bounceCount)
 
-			-- Petit pop sonore/visuel d'avertissement au rebond
+			-- Clignotement de plus en plus rapide et intensité de la mèche accrue
 			if bounceCount < maxBounces then
-				-- Clignotement d'avertissement
-				ball.Color = Color3.fromRGB(255, 255, 100)
-				task.delay(0.06, function()
-					if ball and ball.Parent and ball:GetAttribute("HasExploded") ~= true then
-						ball.Color = typeProfile.Color
-					end
-				end)
+				if bounceCount == 1 then
+					blinkFrequency = 1.8 -- Pulsation d'alerte initiale
+				elseif bounceCount == 2 then
+					blinkFrequency = 3.5
+				elseif bounceCount == 3 then
+					blinkFrequency = 6.0
+				elseif bounceCount >= 4 then
+					blinkFrequency = 12.0 -- Stroboscope d'urgence imminente !
+				end
+
+				if fuse and fuse.Parent then
+					fuse.Rate = 20 + bounceCount * 18
+					fuse.Speed = NumberRange.new(2 + bounceCount * 0.8, 4 + bounceCount * 1.2)
+				end
 			else
-				-- Détonation au 3ème rebond !
+				-- Détonation au 5ème rebond !
 				if touchConn then
 					touchConn:Disconnect()
 				end

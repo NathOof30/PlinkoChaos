@@ -480,4 +480,110 @@ ballScoredEvent.OnClientEvent:Connect(function(data)
 	)
 end)
 
-print("[PlinkoChaos] 🎴 Barre de Deck UI Phase 4 initialisée (10 slots interactifs + bouton Drop).")
+-- 3. Système d'Outlines & Reconnaissance Multijoueur
+-- Vert pour nos billes (reconnaissable même pour la bille sombre)
+-- Rouge pour les adversaires avec affichage discret du pseudo
+local activeBallsFolder = workspace:FindFirstChild("ActiveBalls") :: Folder?
+
+local function decorateBall(ball: Instance)
+	if not ball:IsA("BasePart") then
+		return
+	end
+
+	task.spawn(function()
+		local ownerUserId = ball:GetAttribute("OwnerUserId")
+		if ownerUserId == nil then
+			local waited = 0
+			while waited < 1.0 and ball:GetAttribute("OwnerUserId") == nil do
+				task.wait(0.05)
+				waited += 0.05
+			end
+			ownerUserId = ball:GetAttribute("OwnerUserId")
+		end
+
+		if not ball or not ball.Parent then
+			return
+		end
+
+		local isMyBall = (ownerUserId == localPlayer.UserId)
+
+		-- Highlight Roblox pour l'outline
+		local highlight = Instance.new("Highlight")
+		highlight.Name = "PlinkoBallHighlight"
+		highlight.Adornee = ball
+		highlight.FillTransparency = 1 -- Intérieur transparent pour voir la couleur originale de la bille
+		highlight.OutlineTransparency = 0
+		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+
+		if isMyBall then
+			-- Vert franc (bien vert mais pas fluo)
+			highlight.OutlineColor = Color3.fromRGB(38, 168, 65)
+		else
+			-- Rouge pour les billes adverses
+			highlight.OutlineColor = Color3.fromRGB(225, 45, 45)
+
+			-- Affichage discret du pseudo adverse
+			local ownerName = ball:GetAttribute("OwnerName")
+			if not ownerName or ownerName == "" then
+				local opponentPlayer = ownerUserId and Players:GetPlayerByUserId(ownerUserId)
+				ownerName = opponentPlayer and opponentPlayer.DisplayName or (opponentPlayer and opponentPlayer.Name or "Adversaire")
+			end
+
+			local tagGui = Instance.new("BillboardGui")
+			tagGui.Name = "OpponentTag"
+			tagGui.Adornee = ball
+			tagGui.Size = UDim2.new(0, 68, 0, 16)
+			tagGui.StudsOffset = Vector3.new(0, 1.15, 0)
+			tagGui.AlwaysOnTop = true
+			tagGui.LightInfluence = 0
+			tagGui.MaxDistance = 120
+			tagGui.Parent = ball
+
+			local tagFrame = Instance.new("Frame")
+			tagFrame.Size = UDim2.new(1, 0, 1, 0)
+			tagFrame.BackgroundColor3 = Color3.fromRGB(20, 22, 28)
+			tagFrame.BackgroundTransparency = 0.30
+			tagFrame.Parent = tagGui
+
+			local tagCorner = Instance.new("UICorner")
+			tagCorner.CornerRadius = UDim.new(0, 4)
+			tagCorner.Parent = tagFrame
+
+			local tagStroke = Instance.new("UIStroke")
+			tagStroke.Color = Color3.fromRGB(225, 55, 55)
+			tagStroke.Thickness = 1
+			tagStroke.Parent = tagFrame
+
+			local tagLabel = Instance.new("TextLabel")
+			tagLabel.Size = UDim2.new(1, 0, 1, 0)
+			tagLabel.BackgroundTransparency = 1
+			tagLabel.Text = tostring(ownerName)
+			tagLabel.Font = Enum.Font.GothamBold
+			tagLabel.TextSize = 9
+			tagLabel.TextColor3 = Color3.fromRGB(255, 235, 235)
+			tagLabel.TextTruncate = Enum.TextTruncate.AtEnd
+			tagLabel.Parent = tagFrame
+		end
+
+		highlight.Parent = ball
+	end)
+end
+
+if activeBallsFolder then
+	activeBallsFolder.ChildAdded:Connect(decorateBall)
+	for _, child in ipairs(activeBallsFolder:GetChildren()) do
+		decorateBall(child)
+	end
+end
+
+workspace.ChildAdded:Connect(function(child)
+	if child.Name == "ActiveBalls" and child:IsA("Folder") then
+		activeBallsFolder = child
+		child.ChildAdded:Connect(decorateBall)
+		for _, b in ipairs(child:GetChildren()) do
+			decorateBall(b)
+		end
+	end
+end)
+
+print("[PlinkoChaos] 🎴 Barre de Deck UI Phase 5 initialisée (Outlines multijoueur & Billes spéciales actives).")
