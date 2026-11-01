@@ -37,6 +37,9 @@ local sessionCache = {} :: { [number]: PlayerData }
 -- Non persisté dans le DataStore : à chaque connexion, tous les slots démarrent "Ready"
 local sessionSlotStates = {} :: { [number]: { [number]: string } }
 
+-- Curseur séquentiel (round-robin) par joueur pour forcer l'utilisation de tout le deck (1 à 10)
+local sessionSlotPointers = {} :: { [number]: number }
+
 local dataStore: any = nil
 local isDataStoreAvailable = true
 
@@ -111,6 +114,7 @@ function PlayerDataService.LoadData(player: Player): PlayerData
 		slotStates[i] = "Ready"
 	end
 	sessionSlotStates[userId] = slotStates
+	sessionSlotPointers[userId] = 0
 
 	local ds = getDataStoreInstance()
 	local finalData: PlayerData
@@ -193,6 +197,7 @@ function PlayerDataService.SaveData(player: Player)
 
 	sessionCache[userId] = nil
 	sessionSlotStates[userId] = nil
+	sessionSlotPointers[userId] = nil
 end
 
 -- API de consultation du Deck et des États
@@ -210,17 +215,37 @@ function PlayerDataService.IsSlotReady(player: Player, slotIndex: number): boole
 	return states ~= nil and states[slotIndex] == "Ready"
 end
 
-function PlayerDataService.GetFirstReadySlot(player: Player): number?
+-- Sélection séquentielle circulaire (Round-Robin) des slots :
+-- Permet de jouer l'ensemble des 10 billes (1 -> 10) sans qu'une bille déjà rentrée
+-- au début du deck ne court-circuite les slots 8, 9 ou 10 lors d'un spam de lâchers.
+function PlayerDataService.GetNextReadySlot(player: Player): number?
 	local states = sessionSlotStates[player.UserId]
 	if not states then
 		return nil
 	end
-	for i = 1, 10 do
-		if states[i] == "Ready" then
-			return i
+
+	local currentPointer = sessionSlotPointers[player.UserId] or 0
+
+	for offset = 1, 10 do
+		local candidate = ((currentPointer - 1 + offset) % 10) + 1
+		if states[candidate] == "Ready" then
+			sessionSlotPointers[player.UserId] = candidate
+			return candidate
 		end
 	end
+
 	return nil
+end
+
+-- Rétrocompatibilité
+function PlayerDataService.GetFirstReadySlot(player: Player): number?
+	return PlayerDataService.GetNextReadySlot(player)
+end
+
+function PlayerDataService.SetSlotPointer(player: Player, slotIndex: number)
+	if slotIndex >= 1 and slotIndex <= 10 then
+		sessionSlotPointers[player.UserId] = slotIndex
+	end
 end
 
 function PlayerDataService.SetSlotState(player: Player, slotIndex: number, newState: string)

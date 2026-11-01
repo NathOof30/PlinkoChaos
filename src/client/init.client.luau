@@ -27,7 +27,7 @@ screenGui.Parent = playerGui
 -- Conteneur principal du Deck en bas au centre
 local deckContainer = Instance.new("Frame")
 deckContainer.Name = "DeckContainer"
-deckContainer.Size = UDim2.new(0, 440, 0, 145)
+deckContainer.Size = UDim2.new(0, 440, 0, 126)
 deckContainer.AnchorPoint = Vector2.new(0.5, 1)
 deckContainer.Position = UDim2.new(0.5, 0, 1, -12)
 deckContainer.BackgroundColor3 = Color3.fromRGB(16, 18, 25)
@@ -43,23 +43,11 @@ deckStroke.Color = Color3.fromRGB(48, 54, 72)
 deckStroke.Thickness = 2
 deckStroke.Parent = deckContainer
 
--- Titre discret du Deck
-local deckTitle = Instance.new("TextLabel")
-deckTitle.Name = "DeckTitle"
-deckTitle.Size = UDim2.new(1, 0, 0, 20)
-deckTitle.Position = UDim2.new(0, 0, 0, 6)
-deckTitle.BackgroundTransparency = 1
-deckTitle.Text = "DECK — 10 BILLES ACTIVES"
-deckTitle.Font = Enum.Font.GothamBold
-deckTitle.TextSize = 11
-deckTitle.TextColor3 = Color3.fromRGB(150, 165, 195)
-deckTitle.Parent = deckContainer
-
 -- Barre des 10 Slots horizontaux
 local slotsBar = Instance.new("Frame")
 slotsBar.Name = "SlotsBar"
-slotsBar.Size = UDim2.new(1, -20, 0, 54)
-slotsBar.Position = UDim2.new(0, 10, 0, 28)
+slotsBar.Size = UDim2.new(1, -20, 0, 52)
+slotsBar.Position = UDim2.new(0, 10, 0, 12)
 slotsBar.BackgroundTransparency = 1
 slotsBar.Parent = deckContainer
 
@@ -193,7 +181,7 @@ end
 local controlsFrame = Instance.new("Frame")
 controlsFrame.Name = "ControlsFrame"
 controlsFrame.Size = UDim2.new(1, -24, 0, 46)
-controlsFrame.Position = UDim2.new(0, 12, 0, 90)
+controlsFrame.Position = UDim2.new(0, 12, 0, 70)
 controlsFrame.BackgroundTransparency = 1
 controlsFrame.Parent = deckContainer
 

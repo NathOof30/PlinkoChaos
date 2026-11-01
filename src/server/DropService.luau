@@ -33,17 +33,18 @@ function DropService.Init()
 			return -- Cooldown technique anti-spam
 		end
 
-		-- 1. Résolution du Slot de bille : slot spécifique ou premier disponible
+		-- 1. Résolution du Slot de bille : slot spécifique ou prochain slot séquentiel (Round-Robin)
 		local targetSlotIndex: number?
 		if typeof(requestedSlot) == "number" and requestedSlot >= 1 and requestedSlot <= 10 then
 			if PlayerDataService.IsSlotReady(player, requestedSlot) then
 				targetSlotIndex = requestedSlot
+				PlayerDataService.SetSlotPointer(player, requestedSlot)
 			else
 				dropFailedEvent:FireClient(player, string.format("La bille #%d est déjà en train de tomber !", requestedSlot))
 				return
 			end
 		else
-			targetSlotIndex = PlayerDataService.GetFirstReadySlot(player)
+			targetSlotIndex = PlayerDataService.GetNextReadySlot(player)
 			if not targetSlotIndex then
 				dropFailedEvent:FireClient(player, "Toutes tes 10 billes sont en jeu ! Attends un atterrissage.")
 				print(string.format("[PlinkoChaos] ⏳ %s a tous ses 10 slots occupés sur le plateau", player.Name))
