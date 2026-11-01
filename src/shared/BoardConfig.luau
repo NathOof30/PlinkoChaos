@@ -36,6 +36,12 @@ local BoardConfig = {
 		DataStoreName = "PlinkoChaos_UserData_v1",
 	},
 
+	-- Système de Deck & Cooldown Physique (Phase 4)
+	Deck = {
+		Size = 10, -- 10 emplacements de billes
+		DefaultBallType = "Standard",
+	},
+
 	-- Spécifications de la Grille en Pyramide (Planche de Galton)
 	Pyramid = {
 		StartPegCount = 3, -- 3 clous au sommet (Row 1)

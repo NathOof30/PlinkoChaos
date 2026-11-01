@@ -14,16 +14,28 @@ local function getConfig()
 	return fn()
 end
 
+local Network = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Network"))
+
+export type BallSlot = {
+	ballType: string,
+	level: number,
+}
+
 export type PlayerData = {
 	Coins: number,
 	TotalDrops: number,
+	Deck: { [number]: BallSlot },
 }
 
 local PlayerDataService = {}
 local isInitialized = false
 
--- Cache en mémoire vive par UserId (0 latence pendant la partie, pas de spam DataStore)
+-- Cache en mémoire vive des profils joueurs (sauvegardés dans le DataStore)
 local sessionCache = {} :: { [number]: PlayerData }
+
+-- État volatile en session des 10 slots du Deck ("Ready" ou "Dropping")
+-- Non persisté dans le DataStore : à chaque connexion, tous les slots démarrent "Ready"
+local sessionSlotStates = {} :: { [number]: { [number]: string } }
 
 local dataStore: any = nil
 local isDataStoreAvailable = true
@@ -49,7 +61,19 @@ local function getDataStoreInstance()
 	return dataStore
 end
 
--- Création et synchronisation du leaderboard natif Roblox (en haut à droite)
+-- Création du Deck standard de 10 billes
+local function createDefaultDeck(): { [number]: BallSlot }
+	local deck = {}
+	for i = 1, 10 do
+		deck[i] = {
+			ballType = "Standard",
+			level = 1,
+		}
+	end
+	return deck
+end
+
+-- Création et synchronisation du leaderboard natif Roblox
 local function setupLeaderstats(player: Player, data: PlayerData)
 	local leaderstats = player:FindFirstChild("leaderstats")
 	if not leaderstats then
@@ -69,7 +93,7 @@ local function setupLeaderstats(player: Player, data: PlayerData)
 	end
 end
 
--- Chargement des données à la connexion
+-- Chargement des données à la connexion du joueur
 function PlayerDataService.LoadData(player: Player): PlayerData
 	local BoardConfig = getConfig()
 	local startingCoins = (BoardConfig.Economy and BoardConfig.Economy.StartingCoins) or 100
@@ -78,34 +102,63 @@ function PlayerDataService.LoadData(player: Player): PlayerData
 	local defaultData: PlayerData = {
 		Coins = startingCoins,
 		TotalDrops = 0,
+		Deck = createDefaultDeck(),
 	}
 
+	-- Initialisation de l'état de session : tous les 10 slots sont Ready
+	local slotStates = {}
+	for i = 1, 10 do
+		slotStates[i] = "Ready"
+	end
+	sessionSlotStates[userId] = slotStates
+
 	local ds = getDataStoreInstance()
+	local finalData: PlayerData
+
 	if not isDataStoreAvailable or not ds then
-		sessionCache[userId] = defaultData
-		setupLeaderstats(player, defaultData)
+		finalData = defaultData
+		sessionCache[userId] = finalData
+		setupLeaderstats(player, finalData)
 		print(string.format("[PlinkoChaos] 💾 Données locales initialisées pour %s : %d Pièces (Mode Local)", player.Name, defaultData.Coins))
-		return defaultData
+	else
+		local success, savedData = pcall(function()
+			return ds:GetAsync("Player_" .. userId)
+		end)
+
+		if success and savedData and typeof(savedData) == "table" and savedData.Coins ~= nil then
+			-- Rétrocompatibilité : si le deck n'existait pas encore dans l'ancienne sauvegarde, on l'injecte
+			local loadedDeck = savedData.Deck
+			if not loadedDeck or typeof(loadedDeck) ~= "table" then
+				loadedDeck = createDefaultDeck()
+			else
+				for i = 1, 10 do
+					if not loadedDeck[i] then
+						loadedDeck[i] = { ballType = "Standard", level = 1 }
+					end
+				end
+			end
+
+			finalData = {
+				Coins = math.max(0, math.floor(savedData.Coins)),
+				TotalDrops = savedData.TotalDrops or 0,
+				Deck = loadedDeck,
+			}
+			print(string.format("[PlinkoChaos] 💾 Données chargées depuis DataStore pour %s : %d Pièces, Deck prêt (10 slots)", player.Name, finalData.Coins))
+		else
+			finalData = defaultData
+			print(string.format("[PlinkoChaos] 🌟 Nouveau joueur %s ! Pécule de départ offert : %d Pièces, Deck 10 slots initialisé", player.Name, startingCoins))
+		end
+
+		sessionCache[userId] = finalData
+		setupLeaderstats(player, finalData)
 	end
 
-	local success, savedData = pcall(function()
-		return ds:GetAsync("Player_" .. userId)
+	-- Envoi de la synchronisation complète du Deck au client
+	task.defer(function()
+		local deckSyncEvent = Network.GetRemoteEvent("DeckSync")
+		deckSyncEvent:FireClient(player, finalData.Deck, sessionSlotStates[userId])
 	end)
 
-	local finalData: PlayerData
-	if success and savedData and typeof(savedData) == "table" and savedData.Coins ~= nil then
-		finalData = {
-			Coins = math.max(0, math.floor(savedData.Coins)),
-			TotalDrops = savedData.TotalDrops or 0,
-		}
-		print(string.format("[PlinkoChaos] 💾 Données chargées depuis le DataStore pour %s : %d Pièces", player.Name, finalData.Coins))
-	else
-		finalData = defaultData
-		print(string.format("[PlinkoChaos] 🌟 Nouveau joueur %s ! Pécule de départ offert : %d Pièces", player.Name, startingCoins))
-	end
-
-	sessionCache[userId] = finalData
-	setupLeaderstats(player, finalData)
 	return finalData
 end
 
@@ -120,6 +173,7 @@ function PlayerDataService.SaveData(player: Player)
 	local ds = getDataStoreInstance()
 	if not isDataStoreAvailable or not ds then
 		sessionCache[userId] = nil
+		sessionSlotStates[userId] = nil
 		return
 	end
 
@@ -127,6 +181,7 @@ function PlayerDataService.SaveData(player: Player)
 		ds:SetAsync("Player_" .. userId, {
 			Coins = data.Coins,
 			TotalDrops = data.TotalDrops,
+			Deck = data.Deck,
 		})
 	end)
 
@@ -137,8 +192,55 @@ function PlayerDataService.SaveData(player: Player)
 	end
 
 	sessionCache[userId] = nil
+	sessionSlotStates[userId] = nil
 end
 
+-- API de consultation du Deck et des États
+function PlayerDataService.GetDeck(player: Player): { [number]: BallSlot }?
+	local data = sessionCache[player.UserId]
+	return data and data.Deck
+end
+
+function PlayerDataService.GetSlotStates(player: Player): { [number]: string }?
+	return sessionSlotStates[player.UserId]
+end
+
+function PlayerDataService.IsSlotReady(player: Player, slotIndex: number): boolean
+	local states = sessionSlotStates[player.UserId]
+	return states ~= nil and states[slotIndex] == "Ready"
+end
+
+function PlayerDataService.GetFirstReadySlot(player: Player): number?
+	local states = sessionSlotStates[player.UserId]
+	if not states then
+		return nil
+	end
+	for i = 1, 10 do
+		if states[i] == "Ready" then
+			return i
+		end
+	end
+	return nil
+end
+
+function PlayerDataService.SetSlotState(player: Player, slotIndex: number, newState: string)
+	local states = sessionSlotStates[player.UserId]
+	if not states or slotIndex < 1 or slotIndex > 10 then
+		return
+	end
+
+	if states[slotIndex] == newState then
+		return
+	end
+
+	states[slotIndex] = newState
+
+	-- Notification temps-réel au client pour mettre à jour l'interface (grisé vs actif)
+	local slotStateChangedEvent = Network.GetRemoteEvent("SlotStateChanged")
+	slotStateChangedEvent:FireClient(player, slotIndex, newState)
+end
+
+-- API Monétaire
 function PlayerDataService.GetCoins(player: Player): number
 	local data = sessionCache[player.UserId]
 	return data and data.Coins or 0
@@ -228,8 +330,7 @@ function PlayerDataService.Init()
 		print("[PlinkoChaos] ✅ Sauvegardes terminées.")
 	end)
 
-	print("[PlinkoChaos] 💰 PlayerDataService initialisé.")
+	print("[PlinkoChaos] 💰 PlayerDataService initialisé (Deck 10 slots & Cooldown physique intégrés).")
 end
 
 return PlayerDataService
-

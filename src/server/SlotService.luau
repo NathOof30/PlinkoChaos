@@ -42,6 +42,7 @@ local function onSlotTouched(pad: Part, hit: BasePart)
 	local baseValue = hit:GetAttribute("BaseValue") or 10
 	local ownerUserId = hit:GetAttribute("OwnerUserId") or 0
 	local ballId = hit:GetAttribute("BallId") or "unknown"
+	local deckSlotIndex = hit:GetAttribute("DeckSlotIndex")
 
 	local isPenalty = (multiplier < 1)
 	local amount = 0
@@ -73,11 +74,18 @@ local function onSlotTouched(pad: Part, hit: BasePart)
 			playerName, slotLabel, amount, currentBalance))
 	end
 
+	-- Libération immédiate du slot du Deck (cooldown physique terminé)
+	if player and typeof(deckSlotIndex) == "number" then
+		PlayerDataService.SetSlotState(player, deckSlotIndex, "Ready")
+		print(string.format("[PlinkoChaos] 🔄 Bille revenue au Deck ! Slot #%d de %s est de nouveau Ready.", deckSlotIndex, player.Name))
+	end
+
 	-- Notification réseau à tous les clients avec position pour l'effet d'évaporation 3D
 	ballScoredEvent:FireAllClients({
 		ownerUserId = ownerUserId,
 		playerName = playerName,
 		ballId = ballId,
+		deckSlotIndex = deckSlotIndex,
 		multiplier = multiplier,
 		slotLabel = slotLabel,
 		slotIndex = slotIndex,
@@ -138,7 +146,14 @@ function SlotService.Init()
 					if ball:IsA("BasePart") then
 						local spawnTime = ball:GetAttribute("SpawnTime")
 						if spawnTime and (now - spawnTime > maxLifetime) then
-							warn(string.format("[PlinkoChaos] ⚠️ Watchdog : Bille %s nettoyée pour timeout (>%ds)", ball.Name, maxLifetime))
+							local deckSlotIndex = ball:GetAttribute("DeckSlotIndex")
+							local ownerUserId = ball:GetAttribute("OwnerUserId")
+							local player = ownerUserId and Players:GetPlayerByUserId(ownerUserId)
+							if player and typeof(deckSlotIndex) == "number" then
+								PlayerDataService.SetSlotState(player, deckSlotIndex, "Ready")
+							end
+							warn(string.format("[PlinkoChaos] ⚠️ Watchdog : Bille %s nettoyée pour timeout (>%ds), Slot #%s libéré",
+								ball.Name, maxLifetime, tostring(deckSlotIndex)))
 							ball:Destroy()
 						end
 					end

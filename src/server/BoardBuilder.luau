@@ -348,8 +348,8 @@ function BoardBuilder.Build(): Model
 	spawnLoc.Material = Enum.Material.SmoothPlastic
 	spawnLoc.Color = Color3.fromRGB(48, 52, 68)
 	spawnLoc.Size = Vector3.new(8, 0.4, 8)
-	-- Oriente le joueur face au plateau
-	spawnLoc.CFrame = CFrame.new(center.X, platY + 0.2, platZ) * CFrame.Angles(0, math.rad(180), 0)
+	-- Oriente le joueur face au plateau (vers Z = 0)
+	spawnLoc.CFrame = CFrame.lookAt(Vector3.new(center.X, platY + 0.2, platZ), Vector3.new(center.X, platY + 0.2, 0))
 	spawnLoc.Parent = platformFolder
 
 	-- Garde-corps / rambardes de sécurité
