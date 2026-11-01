@@ -393,6 +393,26 @@ function BoardBuilder.Build(): Model
 	rightRailing.CFrame = CFrame.new(center.X + platWidth / 2, platY + 1.75, platZ)
 	rightRailing.Parent = platformFolder
 
+	-- Rambarde frontale transparente (sécurité anti-chute tout en gardant une vue parfaite)
+	local frontRailing = Instance.new("Part")
+	frontRailing.Name = "FrontRailing"
+	frontRailing.Anchored = true
+	frontRailing.Material = Enum.Material.Glass
+	frontRailing.Color = Color3.fromRGB(200, 225, 255)
+	frontRailing.Transparency = 0.65
+	frontRailing.Size = Vector3.new(platWidth, 3.2, 0.6)
+	frontRailing.CFrame = CFrame.new(center.X, platY + 1.6, platZ - platDepth / 2)
+	frontRailing.Parent = platformFolder
+
+	local frontHandrail = Instance.new("Part")
+	frontHandrail.Name = "FrontHandrail"
+	frontHandrail.Anchored = true
+	frontHandrail.Material = rMat
+	frontHandrail.Color = railingColor
+	frontHandrail.Size = Vector3.new(platWidth, 0.35, 0.9)
+	frontHandrail.CFrame = CFrame.new(center.X, platY + 3.25, platZ - platDepth / 2)
+	frontHandrail.Parent = platformFolder
+
 	boardModel.Parent = workspace
 	return boardModel
 end

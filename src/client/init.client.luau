@@ -514,6 +514,11 @@ ballScoredEvent.OnClientEvent:Connect(function(data)
 		return
 	end
 
+	-- Filtrage multijoueur : seuls les gains/pertes de nos propres billes s'affichent
+	if data.ownerUserId ~= localPlayer.UserId then
+		return
+	end
+
 	spawnEvaporationEffect(
 		data.hitPosition,
 		data.amountText or "+0",

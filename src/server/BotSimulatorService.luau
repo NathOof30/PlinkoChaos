@@ -49,8 +49,8 @@ function BotSimulatorService.Init()
 					print(string.format("[PlinkoChaos] 🤖 Bot %s a lâché une bille %s (offset: %.2f)",
 						bot.name, ballType, offset))
 
-					-- Cadence dynamique et aléatoire simulant plusieurs joueurs actifs
-					local waitDelay = 0.85 + math.random() * 0.75
+					-- Cadence rapide simulant le spam actif de 3 joueurs simultanés
+					local waitDelay = 0.20 + math.random() * 0.22
 					task.wait(waitDelay)
 				end
 				print("[PlinkoChaos] 🤖 Simulation multijoueur ARRÊTÉE.")
