@@ -59,6 +59,30 @@ listLayout.SortOrder = Enum.SortOrder.LayoutOrder
 listLayout.Padding = UDim.new(0, 5)
 listLayout.Parent = slotsBar
 
+-- Styles visuels par type de bille (Phase 5)
+local BALL_STYLES: { [string]: { readyColor: Color3, strokeColor: Color3, name: string } } = {
+	Standard = {
+		readyColor = Color3.fromRGB(225, 228, 235), -- Métal argenté
+		strokeColor = Color3.fromRGB(46, 204, 113), -- Vert prêt
+		name = "Standard",
+	},
+	Heavy = {
+		readyColor = Color3.fromRGB(48, 52, 60), -- Fonte sombre
+		strokeColor = Color3.fromRGB(115, 125, 142), -- Acier trempé
+		name = "Lourde",
+	},
+	Explosive = {
+		readyColor = Color3.fromRGB(255, 80, 20), -- Orange incandescent / feu
+		strokeColor = Color3.fromRGB(255, 140, 40), -- Flamme
+		name = "Explosive",
+	},
+	Spring = {
+		readyColor = Color3.fromRGB(46, 255, 120), -- Vert fluo bondissant
+		strokeColor = Color3.fromRGB(50, 255, 180), -- Électrique
+		name = "Ressort",
+	},
+}
+
 -- Table pour stocker les références visuelles de chaque slot (1 à 10)
 type SlotWidget = {
 	button: TextButton,
@@ -66,23 +90,25 @@ type SlotWidget = {
 	ballCircle: Frame,
 	numberLabel: TextLabel,
 	state: string,
+	ballType: string,
 }
 local slotWidgets = {} :: { [number]: SlotWidget }
 
--- Fonction de mise à jour visuelle d'un slot selon son état (Ready vs Dropping)
+-- Fonction de mise à jour visuelle d'un slot selon son état (Ready vs Dropping) et son type de bille
 local function setSlotWidgetState(slotIndex: number, newState: string, animate: boolean?)
 	local widget = slotWidgets[slotIndex]
 	if not widget then
 		return
 	end
 	widget.state = newState
+	local style = BALL_STYLES[widget.ballType] or BALL_STYLES.Standard
 
 	if newState == "Ready" then
-		-- Slot disponible : couleurs vives, contour vert, bille blanche métallique
+		-- Slot disponible : couleurs spécifiques au type de bille
 		widget.button.BackgroundColor3 = Color3.fromRGB(28, 33, 46)
-		widget.stroke.Color = Color3.fromRGB(46, 204, 113)
+		widget.stroke.Color = style.strokeColor
 		widget.stroke.Thickness = 2
-		widget.ballCircle.BackgroundColor3 = Color3.fromRGB(225, 228, 235)
+		widget.ballCircle.BackgroundColor3 = style.readyColor
 		widget.numberLabel.TextColor3 = Color3.fromRGB(200, 215, 235)
 
 		if animate then
@@ -97,13 +123,24 @@ local function setSlotWidgetState(slotIndex: number, newState: string, animate: 
 		widget.button.BackgroundColor3 = Color3.fromRGB(15, 17, 22)
 		widget.stroke.Color = Color3.fromRGB(42, 46, 58)
 		widget.stroke.Thickness = 1
-		widget.ballCircle.BackgroundColor3 = Color3.fromRGB(48, 52, 62)
+		widget.ballCircle.BackgroundColor3 = Color3.fromRGB(40, 43, 50)
 		widget.numberLabel.TextColor3 = Color3.fromRGB(75, 80, 95)
 	end
 end
 
 -- Création des 10 boutons de slots
 for i = 1, 10 do
+	local defaultType = "Standard"
+	if i == 1 then
+		defaultType = "Heavy"
+	elseif i == 2 then
+		defaultType = "Explosive"
+	elseif i == 3 then
+		defaultType = "Spring"
+	end
+
+	local initialStyle = BALL_STYLES[defaultType] or BALL_STYLES.Standard
+
 	local btn = Instance.new("TextButton")
 	btn.Name = "Slot_" .. i
 	btn.LayoutOrder = i
@@ -118,7 +155,7 @@ for i = 1, 10 do
 	corner.Parent = btn
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(46, 204, 113)
+	stroke.Color = initialStyle.strokeColor
 	stroke.Thickness = 2
 	stroke.Parent = btn
 
@@ -138,7 +175,7 @@ for i = 1, 10 do
 	ballCircle.Size = UDim2.new(0, 20, 0, 20)
 	ballCircle.AnchorPoint = Vector2.new(0.5, 0.5)
 	ballCircle.Position = UDim2.new(0.5, 0, 0.65, 0)
-	ballCircle.BackgroundColor3 = Color3.fromRGB(225, 228, 235)
+	ballCircle.BackgroundColor3 = initialStyle.readyColor
 	ballCircle.BorderSizePixel = 0
 	ballCircle.Parent = btn
 
@@ -152,6 +189,7 @@ for i = 1, 10 do
 		ballCircle = ballCircle,
 		numberLabel = numLbl,
 		state = "Ready",
+		ballType = defaultType,
 	}
 
 	-- Clic direct sur un slot pour lâcher spécifiquement cette bille
@@ -279,6 +317,17 @@ end)
 
 -- Synchronisation initiale du Deck
 deckSyncEvent.OnClientEvent:Connect(function(deckData, slotStates)
+	if deckData and typeof(deckData) == "table" then
+		for i = 1, 10 do
+			if deckData[i] and deckData[i].ballType then
+				local widget = slotWidgets[i]
+				if widget then
+					widget.ballType = deckData[i].ballType
+				end
+			end
+		end
+	end
+
 	if slotStates and typeof(slotStates) == "table" then
 		for i = 1, 10 do
 			local st = slotStates[i] or "Ready"

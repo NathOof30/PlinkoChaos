@@ -12,7 +12,7 @@ local isInitialized = false
 
 -- Debounce par joueur pour éviter le spam réseau
 local playerLastDrop = {} :: { [number]: number }
-local DROP_COOLDOWN = 0.20 -- Cooldown minimal technique
+local DROP_COOLDOWN = 0.15 -- Cooldown minimal technique anti-spam
 
 function DropService.Init()
 	if isInitialized then
@@ -76,12 +76,16 @@ function DropService.Init()
 			offset = defaultOffset + (math.random() - 0.5) * 0.4
 		end
 
-		-- 5. Instanciation de la bille liée à ce slot spécifique
-		local ball = BallFactory.CreateStandardBall(player, offset)
+		-- 5. Récupération du type de bille du Deck et instanciation
+		local deck = PlayerDataService.GetDeck(player)
+		local slotInfo = deck and deck[targetSlotIndex]
+		local ballType = (slotInfo and slotInfo.ballType) or "Standard"
+
+		local ball = BallFactory.CreateBall(ballType, player, offset)
 		ball:SetAttribute("DeckSlotIndex", targetSlotIndex)
 
 		local remaining = PlayerDataService.GetCoins(player)
-		print(string.format("[PlinkoChaos] 🟢 Bille #%d lâchée par %s (-%d pièces, reste: %d)", targetSlotIndex, player.Name, dropCost, remaining))
+		print(string.format("[PlinkoChaos] 🟢 Bille #%d (%s) lâchée par %s (-%d pièces, reste: %d)", targetSlotIndex, ballType, player.Name, dropCost, remaining))
 	end)
 
 	-- Recharge de secours si le joueur est à sec

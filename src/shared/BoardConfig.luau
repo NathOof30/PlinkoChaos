@@ -7,6 +7,21 @@ export type SlotDefinition = {
 	color: Color3,
 }
 
+export type BallTypeDefinition = {
+	Name: string,
+	Color: Color3,
+	Material: Enum.Material,
+	Density: number,
+	Friction: number,
+	Elasticity: number,
+	FrictionWeight: number,
+	ElasticityWeight: number,
+	MaxBounces: number?,
+	ExplosionRadius: number?,
+	ExplosionForce: number?,
+	Description: string,
+}
+
 local BoardConfig = {
 	-- Position globale du plateau dans le monde
 	CenterPosition = Vector3.new(0, 50, 0),
@@ -27,6 +42,57 @@ local BoardConfig = {
 		BaseValue = 10, -- Valeur de base d'une bille en pièces
 		DefaultSpawnOffset = 0.5, -- Légèrement décentré pour amorcer le premier choix
 		MaxLifetime = 25, -- Sécurité anti-blocage (secondes)
+	},
+
+	-- Profils des types de billes spéciales (Phase 5)
+	BallTypes = {
+		Standard = {
+			Name = "Standard",
+			Color = Color3.fromRGB(225, 228, 235),
+			Material = Enum.Material.Metal,
+			Density = 1.0,
+			Friction = 0.15,
+			Elasticity = 0.45,
+			FrictionWeight = 1.0,
+			ElasticityWeight = 1.0,
+			Description = "Bille métallique polyvalente équilibrée.",
+		},
+		Heavy = {
+			Name = "Lourde",
+			Color = Color3.fromRGB(48, 52, 60), -- Fonte sombre
+			Material = Enum.Material.Metal,
+			Density = 5.5, -- Très dense et imposante
+			Friction = 0.25,
+			Elasticity = 0.18, -- Rebond très faible
+			FrictionWeight = 1.0,
+			ElasticityWeight = 1.5,
+			Description = "Bille en fonte ultra dense. Écarte puissamment les billes sur son passage.",
+		},
+		Explosive = {
+			Name = "Explosive",
+			Color = Color3.fromRGB(255, 80, 20), -- Orange incandescent / feu
+			Material = Enum.Material.Neon,
+			Density = 0.85,
+			Friction = 0.20,
+			Elasticity = 0.45,
+			FrictionWeight = 1.0,
+			ElasticityWeight = 1.0,
+			MaxBounces = 3, -- Explose au 3ème rebond
+			ExplosionRadius = 7.5, -- Rayon de répulsion
+			ExplosionForce = 26.0, -- Force d'impulsion centrifuge
+			Description = "Déclenche une déflagration au 3ème rebond qui repousse violemment les billes alentour.",
+		},
+		Spring = {
+			Name = "Ressort",
+			Color = Color3.fromRGB(46, 255, 120), -- Vert fluo bondissant
+			Material = Enum.Material.Neon,
+			Density = 0.25, -- Ultra légère
+			Friction = 0.10,
+			Elasticity = 0.96, -- Rebond surpuissant
+			FrictionWeight = 0.8,
+			ElasticityWeight = 2.0,
+			Description = "Ultra légère et bondissante. Ricoche avec dynamisme sur chaque clou.",
+		},
 	},
 
 	-- Économie & Sauvegarde (Phase 3)

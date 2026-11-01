@@ -21,4 +21,4 @@ PlayerDataService.Init()
 DropService.Init()
 SlotService.Init()
 
-print("[PlinkoChaos] 🚀 Phase 4 opérationnelle : Deck 10 Slots, Cooldown physique & Interface active !")
+print("[PlinkoChaos] 🚀 Phase 5 opérationnelle : Billes Spéciales (Lourde, Explosive, Ressort) & Deck 10 slots !")

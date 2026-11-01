@@ -64,10 +64,13 @@ local function getDataStoreInstance()
 	return dataStore
 end
 
--- Création du Deck standard de 10 billes
+-- Création du Deck standard de 10 billes (Phase 5 : Équipement des 3 billes spéciales)
 local function createDefaultDeck(): { [number]: BallSlot }
 	local deck = {}
-	for i = 1, 10 do
+	deck[1] = { ballType = "Heavy", level = 1 }
+	deck[2] = { ballType = "Explosive", level = 1 }
+	deck[3] = { ballType = "Spring", level = 1 }
+	for i = 4, 10 do
 		deck[i] = {
 			ballType = "Standard",
 			level = 1,
@@ -139,6 +142,12 @@ function PlayerDataService.LoadData(player: Player): PlayerData
 					if not loadedDeck[i] then
 						loadedDeck[i] = { ballType = "Standard", level = 1 }
 					end
+				end
+				-- Phase 5 : Équipement automatique des 3 billes spéciales pour les tests
+				if loadedDeck[1].ballType == "Standard" and loadedDeck[2].ballType == "Standard" and loadedDeck[3].ballType == "Standard" then
+					loadedDeck[1] = { ballType = "Heavy", level = 1 }
+					loadedDeck[2] = { ballType = "Explosive", level = 1 }
+					loadedDeck[3] = { ballType = "Spring", level = 1 }
 				end
 			end
 
