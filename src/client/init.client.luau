@@ -1302,7 +1302,7 @@ feedbackEvent.OnClientEvent:Connect(function(success: boolean, message: string)
 end)
 
 -- Surveillance du solde via leaderstats
-local function monitorLeaderstats(leaderstats: Folder)
+local function monitorLeaderstats(leaderstats: Instance)
 	local coinsValue = leaderstats:WaitForChild("Pièces") :: IntValue
 	local function updateUI(coins: number)
 		currentCoins = coins
@@ -1327,12 +1327,12 @@ local function monitorLeaderstats(leaderstats: Folder)
 end
 
 local existingLeaderstats = localPlayer:FindFirstChild("leaderstats")
-if existingLeaderstats and existingLeaderstats:IsA("Folder") then
-	task.spawn(monitorLeaderstats, existingLeaderstats :: Folder)
+if existingLeaderstats then
+	task.spawn(monitorLeaderstats, existingLeaderstats)
 else
-	localPlayer.ChildAdded:Connect(function(child)
-		if child.Name == "leaderstats" and child:IsA("Folder") then
-			monitorLeaderstats(child :: Folder)
+	localPlayer.ChildAdded:Connect(function(child: Instance)
+		if child.Name == "leaderstats" then
+			monitorLeaderstats(child)
 		end
 	end)
 end
@@ -1448,7 +1448,7 @@ ballScoredEvent.OnClientEvent:Connect(function(data)
 end)
 
 -- Décoration Multijoueur des Billes (Highlight Vert pour joueur, Rouge + Pseudo pour adversaires)
-local activeBallsFolder = workspace:FindFirstChild("ActiveBalls") :: Folder?
+local activeBallsFolder: Instance? = workspace:FindFirstChild("ActiveBalls")
 
 local function decorateBall(ball: Instance)
 	if not ball:IsA("BasePart") then
@@ -1537,9 +1537,9 @@ if activeBallsFolder then
 	end
 end
 
-workspace.ChildAdded:Connect(function(child)
-	if child.Name == "ActiveBalls" and child:IsA("Folder") then
-		activeBallsFolder = child :: Folder
+workspace.ChildAdded:Connect(function(child: Instance)
+	if child.Name == "ActiveBalls" then
+		activeBallsFolder = child
 		child.ChildAdded:Connect(decorateBall)
 		for _, b in ipairs(child:GetChildren()) do
 			decorateBall(b)
