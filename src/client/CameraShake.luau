@@ -92,3 +92,4 @@ function CameraShake.Jackpot()
 end
 
 return CameraShake
+
