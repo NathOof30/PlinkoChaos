@@ -217,6 +217,7 @@ function BoardBuilder.Build(): Model
 			peg.Material = pegCfg.Material
 			peg.Color = pegCfg.Color
 			peg.CustomPhysicalProperties = pegPhysProps
+			CollectionService:AddTag(peg, "PlinkoPeg")
 			peg.Parent = pegsFolder
 		end
 	end

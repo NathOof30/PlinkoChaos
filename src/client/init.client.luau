@@ -3,8 +3,11 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
+local CollectionService = game:GetService("CollectionService")
 
 local Network = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Network"))
+local SoundManager = require(script:WaitForChild("SoundManager"))
+local CameraShake = require(script:WaitForChild("CameraShake"))
 
 local localPlayer = Players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
@@ -184,9 +187,16 @@ local function updateSlotWidget(slotIndex: number, animate: boolean?)
 			widget.numberLabel.TextColor3 = Color3.fromRGB(200, 215, 235)
 
 			if animate then
-				widget.button.Size = UDim2.new(0, 42, 0, 54)
-				TweenService:Create(widget.button, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+				widget.button.Size = UDim2.new(0, 44, 0, 56)
+				local origStrokeColor = style.strokeColor
+				widget.stroke.Color = Color3.fromRGB(255, 235, 120)
+				widget.stroke.Thickness = 3
+				TweenService:Create(widget.button, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 					Size = UDim2.new(0, 36, 0, 48),
+				}):Play()
+				TweenService:Create(widget.stroke, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					Color = origStrokeColor,
+					Thickness = 2,
 				}):Play()
 			end
 		else
@@ -275,6 +285,8 @@ for i = 1, 10 do
 			return
 		end
 
+		SoundManager.PlayButtonClick()
+
 		if widget.isEmpty then
 			if openModal then
 				openModal(1) -- Ouvre directement sur l'onglet Deck & Inventaire
@@ -314,7 +326,7 @@ backpackButton.Name = "BackpackButton"
 backpackButton.Size = UDim2.new(0, 155, 1, 0)
 backpackButton.Position = UDim2.new(0, 0, 0, 0)
 backpackButton.BackgroundColor3 = Color3.fromRGB(30, 38, 54)
-backpackButton.Text = "🎒 Atelier & Craft"
+backpackButton.Text = "ATELIER & CRAFT"
 backpackButton.Font = Enum.Font.FredokaOne
 backpackButton.TextSize = 16
 backpackButton.TextColor3 = Color3.fromRGB(225, 238, 255)
@@ -359,7 +371,7 @@ reliefButton.Size = UDim2.new(0, 200, 0, 32)
 reliefButton.AnchorPoint = Vector2.new(0.5, 0)
 reliefButton.Position = UDim2.new(0.5, 0, 0, -36)
 reliefButton.BackgroundColor3 = Color3.fromRGB(230, 126, 34)
-reliefButton.Text = "🆘 Recharge de Secours (+50)"
+reliefButton.Text = "RECHARGE D'URGENCE (+50)"
 reliefButton.Font = Enum.Font.FredokaOne
 reliefButton.TextSize = 14
 reliefButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -371,6 +383,7 @@ reliefCorner.CornerRadius = UDim.new(0, 8)
 reliefCorner.Parent = reliefButton
 
 reliefButton.MouseButton1Click:Connect(function()
+	SoundManager.PlayButtonClick()
 	requestReliefEvent:FireServer()
 end)
 
@@ -381,7 +394,7 @@ devSimButton.Size = UDim2.new(0, 195, 0, 36)
 devSimButton.AnchorPoint = Vector2.new(1, 0)
 devSimButton.Position = UDim2.new(1, -16, 0, 16)
 devSimButton.BackgroundColor3 = Color3.fromRGB(30, 34, 46)
-devSimButton.Text = "🤖 Simuler 3 Joueurs [OFF]"
+devSimButton.Text = "SIMULATEUR 3 JOUEURS [OFF]"
 devSimButton.Font = Enum.Font.GothamBold
 devSimButton.TextSize = 12
 devSimButton.TextColor3 = Color3.fromRGB(195, 210, 235)
@@ -399,6 +412,7 @@ devSimStroke.Parent = devSimButton
 
 local isSimActive = false
 devSimButton.MouseButton1Click:Connect(function()
+	SoundManager.PlayButtonClick()
 	toggleBotSimulationEvent:FireServer()
 end)
 
@@ -406,11 +420,11 @@ toggleBotSimulationEvent.OnClientEvent:Connect(function(active: boolean)
 	isSimActive = active
 	if isSimActive then
 		devSimButton.BackgroundColor3 = Color3.fromRGB(38, 125, 68)
-		devSimButton.Text = "🤖 3 Joueurs Actifs [STOP]"
+		devSimButton.Text = "SIMULATEUR 3 JOUEURS [ACTIF]"
 		devSimStroke.Color = Color3.fromRGB(46, 204, 113)
 	else
 		devSimButton.BackgroundColor3 = Color3.fromRGB(30, 34, 46)
-		devSimButton.Text = "🤖 Simuler 3 Joueurs [OFF]"
+		devSimButton.Text = "SIMULATEUR 3 JOUEURS [OFF]"
 		devSimStroke.Color = Color3.fromRGB(65, 75, 100)
 	end
 end)
@@ -428,6 +442,8 @@ local function triggerMainDrop()
 		return
 	end
 	lastDropTime = now
+
+	SoundManager.PlayButtonClick()
 
 	dropButton.Size = UDim2.new(1, -172, 1, -4)
 	TweenService:Create(dropButton, TweenInfo.new(0.12, Enum.EasingStyle.Back), { Size = UDim2.new(1, -165, 1, 0) }):Play()
@@ -504,7 +520,7 @@ local modalTitle = Instance.new("TextLabel")
 modalTitle.Name = "Title"
 modalTitle.Size = UDim2.new(0, 360, 1, 0)
 modalTitle.BackgroundTransparency = 1
-modalTitle.Text = "🎒 ATELIER DE FUSION & INVENTAIRE"
+modalTitle.Text = "ATELIER DE FUSION & INVENTAIRE"
 modalTitle.Font = Enum.Font.FredokaOne
 modalTitle.TextSize = 20
 modalTitle.TextColor3 = Color3.fromRGB(240, 245, 255)
@@ -516,7 +532,7 @@ modalCoins.Name = "CoinsIndicator"
 modalCoins.Size = UDim2.new(0, 180, 1, 0)
 modalCoins.Position = UDim2.new(1, -220, 0, 0)
 modalCoins.BackgroundTransparency = 1
-modalCoins.Text = "🪙 10 Pièces"
+modalCoins.Text = "10 PIÈCES"
 modalCoins.Font = Enum.Font.FredokaOne
 modalCoins.TextSize = 18
 modalCoins.TextColor3 = Color3.fromRGB(255, 215, 0)
@@ -529,7 +545,7 @@ closeButton.Size = UDim2.new(0, 32, 0, 32)
 closeButton.AnchorPoint = Vector2.new(1, 0.5)
 closeButton.Position = UDim2.new(1, 0, 0.5, 0)
 closeButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
-closeButton.Text = "✕"
+closeButton.Text = "X"
 closeButton.Font = Enum.Font.GothamBold
 closeButton.TextSize = 18
 closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -586,7 +602,7 @@ tabBtn1.Name = "TabDeckInv"
 tabBtn1.Size = UDim2.new(0.5, -4, 1, 0)
 tabBtn1.Position = UDim2.new(0, 0, 0, 0)
 tabBtn1.BackgroundColor3 = Color3.fromRGB(45, 60, 90)
-tabBtn1.Text = "🎴 Mon Deck & Inventaire"
+tabBtn1.Text = "DECK & INVENTAIRE"
 tabBtn1.Font = Enum.Font.FredokaOne
 tabBtn1.TextSize = 16
 tabBtn1.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -601,7 +617,7 @@ tabBtn2.Name = "TabCraftShop"
 tabBtn2.Size = UDim2.new(0.5, -4, 1, 0)
 tabBtn2.Position = UDim2.new(0.5, 4, 0, 0)
 tabBtn2.BackgroundColor3 = Color3.fromRGB(26, 32, 46)
-tabBtn2.Text = "🔨 Atelier de Fusion & Boutique"
+tabBtn2.Text = "FUSION & BOUTIQUE"
 tabBtn2.Font = Enum.Font.FredokaOne
 tabBtn2.TextSize = 16
 tabBtn2.TextColor3 = Color3.fromRGB(160, 175, 205)
@@ -631,6 +647,7 @@ pageCraftShop.Visible = false
 pageCraftShop.Parent = modalFrame
 
 local function switchTab(tabIndex: number)
+	SoundManager.PlayButtonClick()
 	if tabIndex == 1 then
 		pageDeckInv.Visible = true
 		pageCraftShop.Visible = false
@@ -657,10 +674,12 @@ openModal = function(tabIndex: number?)
 end
 
 backpackButton.MouseButton1Click:Connect(function()
+	SoundManager.PlayButtonClick()
 	openModal(1)
 end)
 
 closeButton.MouseButton1Click:Connect(function()
+	SoundManager.PlayButtonClick()
 	modalBackdrop.Visible = false
 end)
 
@@ -671,7 +690,7 @@ local deckSectionLbl = Instance.new("TextLabel")
 deckSectionLbl.Size = UDim2.new(1, 0, 0, 20)
 deckSectionLbl.Position = UDim2.new(0, 0, 0, 2)
 deckSectionLbl.BackgroundTransparency = 1
-deckSectionLbl.Text = "🎯 MON DECK ACTIF (10 SLOTS)"
+deckSectionLbl.Text = "DECK ACTIF (10 SLOTS)"
 deckSectionLbl.Font = Enum.Font.FredokaOne
 deckSectionLbl.TextSize = 14
 deckSectionLbl.TextColor3 = Color3.fromRGB(130, 185, 255)
@@ -768,6 +787,7 @@ for i = 1, 10 do
 	ubCorner.Parent = unequipBtn
 
 	unequipBtn.MouseButton1Click:Connect(function()
+		SoundManager.PlayButtonClick()
 		unequipBallEvent:FireServer(i)
 	end)
 
@@ -785,7 +805,7 @@ local invSectionLbl = Instance.new("TextLabel")
 invSectionLbl.Size = UDim2.new(1, 0, 0, 20)
 invSectionLbl.Position = UDim2.new(0, 0, 0, 126)
 invSectionLbl.BackgroundTransparency = 1
-invSectionLbl.Text = "📦 BILLES EN RÉSERVE (STOCK D'INVENTAIRE)"
+invSectionLbl.Text = "STOCK EN RÉSERVE"
 invSectionLbl.Font = Enum.Font.FredokaOne
 invSectionLbl.TextSize = 14
 invSectionLbl.TextColor3 = Color3.fromRGB(80, 235, 160)
@@ -889,6 +909,7 @@ for _, bType in ipairs(BALL_TYPES_ORDER) do
 	ebCorner.Parent = equipBtn
 
 	equipBtn.MouseButton1Click:Connect(function()
+		SoundManager.PlayButtonClick()
 		equipBallEvent:FireServer(bType, nil)
 	end)
 
@@ -910,7 +931,7 @@ local shopSectionLbl = Instance.new("TextLabel")
 shopSectionLbl.Size = UDim2.new(1, 0, 0, 22)
 shopSectionLbl.LayoutOrder = 1
 shopSectionLbl.BackgroundTransparency = 1
-shopSectionLbl.Text = "🛒 BOUTIQUE DE BASE (ACHAT DE BILLES STANDARDS)"
+shopSectionLbl.Text = "BOUTIQUE DE BASE"
 shopSectionLbl.Font = Enum.Font.FredokaOne
 shopSectionLbl.TextSize = 14
 shopSectionLbl.TextColor3 = Color3.fromRGB(255, 215, 0)
@@ -970,7 +991,7 @@ buyStdBtn.Size = UDim2.new(0, 160, 0, 38)
 buyStdBtn.AnchorPoint = Vector2.new(1, 0.5)
 buyStdBtn.Position = UDim2.new(1, -16, 0.5, 0)
 buyStdBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-buyStdBtn.Text = "Acheter (10 🪙)"
+buyStdBtn.Text = "Acheter (10 Pièces)"
 buyStdBtn.Font = Enum.Font.FredokaOne
 buyStdBtn.TextSize = 14
 buyStdBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -982,6 +1003,7 @@ bsbCorner.CornerRadius = UDim.new(0, 8)
 bsbCorner.Parent = buyStdBtn
 
 buyStdBtn.MouseButton1Click:Connect(function()
+	SoundManager.PlayButtonClick()
 	buyStandardEvent:FireServer()
 end)
 
@@ -990,7 +1012,7 @@ local craftSectionLbl = Instance.new("TextLabel")
 craftSectionLbl.Size = UDim2.new(1, 0, 0, 22)
 craftSectionLbl.LayoutOrder = 3
 craftSectionLbl.BackgroundTransparency = 1
-craftSectionLbl.Text = "🔨 ATELIER DE CRAFT & BLUEPRINTS (PLANS DE FABRICATION)"
+craftSectionLbl.Text = "PLANS DE FABRICATION & FUSION"
 craftSectionLbl.Font = Enum.Font.FredokaOne
 craftSectionLbl.TextSize = 14
 craftSectionLbl.TextColor3 = Color3.fromRGB(255, 140, 50)
@@ -1057,7 +1079,7 @@ for idx, item in ipairs(CRAFTABLE_BALLS) do
 	rStatus.Size = UDim2.new(0, 240, 0, 14)
 	rStatus.Position = UDim2.new(0, 64, 0, 32)
 	rStatus.BackgroundTransparency = 1
-	rStatus.Text = "🔒 Plan non débloqué"
+	rStatus.Text = "Plan non débloqué"
 	rStatus.Font = Enum.Font.GothamBold
 	rStatus.TextSize = 11
 	rStatus.TextColor3 = Color3.fromRGB(240, 140, 60)
@@ -1082,7 +1104,7 @@ for idx, item in ipairs(CRAFTABLE_BALLS) do
 	bpBtn.AnchorPoint = Vector2.new(1, 0.5)
 	bpBtn.Position = UDim2.new(1, -16, 0.5, 0)
 	bpBtn.BackgroundColor3 = Color3.fromRGB(230, 126, 34)
-	bpBtn.Text = string.format("🔒 Plan (%d 🪙)", item.cost)
+	bpBtn.Text = string.format("Plan (%d Pièces)", item.cost)
 	bpBtn.Font = Enum.Font.FredokaOne
 	bpBtn.TextSize = 13
 	bpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -1094,6 +1116,7 @@ for idx, item in ipairs(CRAFTABLE_BALLS) do
 	bpCorner2.Parent = bpBtn
 
 	bpBtn.MouseButton1Click:Connect(function()
+		SoundManager.PlayButtonClick()
 		unlockBlueprintEvent:FireServer(bType)
 	end)
 
@@ -1104,7 +1127,7 @@ for idx, item in ipairs(CRAFTABLE_BALLS) do
 	craftBtn.AnchorPoint = Vector2.new(1, 0.5)
 	craftBtn.Position = UDim2.new(1, -16, 0.5, 0)
 	craftBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-	craftBtn.Text = "✨ Fabriquer (+1)"
+	craftBtn.Text = "Fabriquer (+1)"
 	craftBtn.Font = Enum.Font.FredokaOne
 	craftBtn.TextSize = 14
 	craftBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -1117,6 +1140,7 @@ for idx, item in ipairs(CRAFTABLE_BALLS) do
 	cbCorner.Parent = craftBtn
 
 	craftBtn.MouseButton1Click:Connect(function()
+		SoundManager.PlayButtonClick()
 		craftBallEvent:FireServer(bType)
 	end)
 
@@ -1131,7 +1155,7 @@ end
 -- ==================== LOGIQUE DE RAFRAÎCHISSEMENT GLOBAL UI ====================
 
 local function refreshAllUI()
-	modalCoins.Text = string.format("🪙 %d Pièces", currentCoins)
+	modalCoins.Text = string.format("%d PIÈCES", currentCoins)
 
 	-- 1. Rafraîchissement de la barre inférieure de Deck
 	local equippedCount = 0
@@ -1207,7 +1231,7 @@ local function refreshAllUI()
 		if row then
 			local hasBlueprint = currentBlueprints[bType] == true
 			if hasBlueprint then
-				row.statusLabel.Text = "✅ Plan débloqué"
+				row.statusLabel.Text = "Plan débloqué"
 				row.statusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
 				row.blueprintBtn.Visible = false
 				row.craftBtn.Visible = true
@@ -1236,7 +1260,7 @@ local function refreshAllUI()
 
 				if canCraft then
 					row.craftBtn.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-					row.craftBtn.Text = "✨ Fabriquer (+1)"
+					row.craftBtn.Text = "Fabriquer (+1)"
 					row.craftBtn.AutoButtonColor = true
 				else
 					row.craftBtn.BackgroundColor3 = Color3.fromRGB(60, 68, 85)
@@ -1244,7 +1268,7 @@ local function refreshAllUI()
 					row.craftBtn.AutoButtonColor = false
 				end
 			else
-				row.statusLabel.Text = "🔒 Plan non débloqué"
+				row.statusLabel.Text = "Plan non débloqué"
 				row.statusLabel.TextColor3 = Color3.fromRGB(240, 140, 60)
 				row.blueprintBtn.Visible = true
 				row.craftBtn.Visible = false
@@ -1293,12 +1317,18 @@ slotStateChangedEvent.OnClientEvent:Connect(function(slotIndex: number, newState
 	if slotIndex and slotIndex >= 1 and slotIndex <= 10 then
 		currentSlotStates[slotIndex] = newState
 		updateSlotWidget(slotIndex, newState == "Ready")
+		if newState == "Ready" then
+			SoundManager.PlayDeckSlotPop()
+		end
 		refreshAllUI()
 	end
 end)
 
 feedbackEvent.OnClientEvent:Connect(function(success: boolean, message: string)
 	showToast(success, message)
+	if success then
+		SoundManager.PlayCraftSuccess()
+	end
 end)
 
 -- Surveillance du solde via leaderstats
@@ -1306,12 +1336,12 @@ local function monitorLeaderstats(leaderstats: Instance)
 	local coinsValue = leaderstats:WaitForChild("Pièces") :: IntValue
 	local function updateUI(coins: number)
 		currentCoins = coins
-		modalCoins.Text = string.format("🪙 %d Pièces", coins)
+		modalCoins.Text = string.format("%d PIÈCES", coins)
 
 		if coins < 10 then
 			reliefButton.Visible = true
 			dropButton.BackgroundColor3 = Color3.fromRGB(108, 122, 137)
-			dropButton.Text = "Fonds insuffisants (10 🪙)"
+			dropButton.Text = "Fonds insuffisants (10 Pièces)"
 			dropBtnStroke.Color = Color3.fromRGB(80, 90, 100)
 		else
 			reliefButton.Visible = false
@@ -1429,6 +1459,59 @@ local function spawnEvaporationEffect(hitPosition: Vector3, amountText: string, 
 	Debris:AddItem(fxPart, DURATION + 0.2)
 end
 
+local function spawnJackpotCelebration(hitPosition: Vector3)
+	local jackpotPart = Instance.new("Part")
+	jackpotPart.Name = "FX_JackpotFountain"
+	jackpotPart.Size = Vector3.new(0.5, 0.5, 0.5)
+	jackpotPart.Transparency = 1
+	jackpotPart.CanCollide = false
+	jackpotPart.Anchored = true
+	jackpotPart.CFrame = CFrame.new(hitPosition + Vector3.new(0, 1.2, 0.5))
+	jackpotPart.Parent = fxFolder
+
+	-- Flash lumineux doré
+	local light = Instance.new("PointLight")
+	light.Color = Color3.fromRGB(255, 215, 60)
+	light.Range = 22
+	light.Brightness = 3.5
+	light.Parent = jackpotPart
+
+	TweenService:Create(light, TweenInfo.new(1.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Brightness = 0,
+		Range = 4,
+	}):Play()
+
+	-- Gerbe d'étincelles dorées jaillissant vers le haut
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Texture = "rbxassetid://6071575925"
+	emitter.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 235, 100)),
+		ColorSequenceKeypoint.new(0.6, Color3.fromRGB(255, 180, 20)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 120, 0)),
+	})
+	emitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.5),
+		NumberSequenceKeypoint.new(0.5, 0.7),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	emitter.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.0),
+		NumberSequenceKeypoint.new(0.7, 0.2),
+		NumberSequenceKeypoint.new(1, 1.0),
+	})
+	emitter.Lifetime = NumberRange.new(1.2, 1.8)
+	emitter.Speed = NumberRange.new(8, 16)
+	emitter.SpreadAngle = Vector2.new(35, 35)
+	emitter.Acceleration = Vector3.new(0, -18, 0)
+	emitter.Drag = 1.2
+	emitter.Rate = 0
+	emitter.Parent = jackpotPart
+
+	emitter:Emit(40)
+
+	Debris:AddItem(jackpotPart, 2.5)
+end
+
 ballScoredEvent.OnClientEvent:Connect(function(data)
 	if not data or not data.hitPosition then
 		return
@@ -1439,11 +1522,23 @@ ballScoredEvent.OnClientEvent:Connect(function(data)
 		return
 	end
 
+	local multiplier = data.multiplier or 1
+	local isPenalty = data.isPenalty == true
+
+	-- Audio gratifiant Casino Moderne
+	SoundManager.PlaySlotOutcome(multiplier, isPenalty, data.hitPosition)
+
+	-- Caméra shake et célébration visuelle sur Jackpot x10
+	if multiplier >= 10 then
+		CameraShake.Jackpot()
+		spawnJackpotCelebration(data.hitPosition)
+	end
+
 	spawnEvaporationEffect(
 		data.hitPosition,
 		data.amountText or "+0",
-		data.isPenalty == true,
-		data.multiplier or 1
+		isPenalty,
+		multiplier
 	)
 end)
 
@@ -1547,4 +1642,84 @@ workspace.ChildAdded:Connect(function(child: Instance)
 	end
 end)
 
-print("[PlinkoChaos] 🎒 Client UI Phase 6 V2 initialisée (Deck 10 slots, Inventaire & Atelier de Crafting opérationnels).")
+-- ==================== PHASE 7 : GAME FEEL, AUDIO & VISUAL JUICE ====================
+
+-- 1. Réactivité visuelle & audio des clous (Glow néon cyan + percussion sonore)
+local function setupPeg(peg: Instance)
+	if not peg:IsA("BasePart") then
+		return
+	end
+	if peg:GetAttribute("PegJuiceAttached") == true then
+		return
+	end
+	peg:SetAttribute("PegJuiceAttached", true)
+
+	local originalColor = peg.Color
+	local originalMaterial = peg.Material
+	local lastHitTime = 0
+
+	peg.Touched:Connect(function(otherPart)
+		if not otherPart or otherPart.Name ~= "PlinkoBall" then
+			return
+		end
+		local now = os.clock()
+		if now - lastHitTime < 0.04 then
+			return
+		end
+		lastHitTime = now
+
+		-- Percussion audio avec pitch shift dynamique
+		SoundManager.PlayPegHit(peg.Position)
+
+		-- Impulsion lumineuse néon cyan
+		peg.Material = Enum.Material.Neon
+		peg.Color = Color3.fromRGB(220, 240, 255)
+
+		local tween = TweenService:Create(peg, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Color = originalColor,
+		})
+		tween:Play()
+
+		task.delay(0.12, function()
+			if peg and peg.Parent then
+				peg.Material = originalMaterial
+				peg.Color = originalColor
+			end
+		end)
+	end)
+end
+
+-- Attacher aux clous existants et futurs via CollectionService
+for _, peg in ipairs(CollectionService:GetTagged("PlinkoPeg")) do
+	setupPeg(peg)
+end
+CollectionService:GetInstanceAddedSignal("PlinkoPeg"):Connect(setupPeg)
+
+-- Sécurité supplémentaire si le modèle PlinkoBoard existe déjà dans le workspace
+local function scanBoardPegs(board: Instance)
+	local pegsFolder = board:FindFirstChild("Pegs")
+	if pegsFolder then
+		for _, peg in ipairs(pegsFolder:GetChildren()) do
+			setupPeg(peg)
+		end
+	end
+end
+
+local existingBoard = workspace:FindFirstChild("PlinkoBoard")
+if existingBoard then
+	scanBoardPegs(existingBoard)
+end
+workspace.ChildAdded:Connect(function(child: Instance)
+	if child.Name == "PlinkoBoard" then
+		scanBoardPegs(child)
+	end
+end)
+
+-- 2. Secousse de caméra sur les explosions de billes
+workspace.ChildAdded:Connect(function(child: Instance)
+	if child:IsA("Explosion") or child.Name == "ExplosionShockwave" then
+		CameraShake.Explosion()
+	end
+end)
+
+print("[PlinkoChaos] Client Phase 7 initialisée (Audio Casino Moderne, Glow Clous, Cam Shake & Visual Juice).")
