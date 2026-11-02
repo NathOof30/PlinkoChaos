@@ -1327,12 +1327,12 @@ local function monitorLeaderstats(leaderstats: Folder)
 end
 
 local existingLeaderstats = localPlayer:FindFirstChild("leaderstats")
-if existingLeaderstats then
+if existingLeaderstats and existingLeaderstats:IsA("Folder") then
 	task.spawn(monitorLeaderstats, existingLeaderstats :: Folder)
 else
 	localPlayer.ChildAdded:Connect(function(child)
 		if child.Name == "leaderstats" and child:IsA("Folder") then
-			monitorLeaderstats(child)
+			monitorLeaderstats(child :: Folder)
 		end
 	end)
 end
@@ -1539,7 +1539,7 @@ end
 
 workspace.ChildAdded:Connect(function(child)
 	if child.Name == "ActiveBalls" and child:IsA("Folder") then
-		activeBallsFolder = child
+		activeBallsFolder = child :: Folder
 		child.ChildAdded:Connect(decorateBall)
 		for _, b in ipairs(child:GetChildren()) do
 			decorateBall(b)

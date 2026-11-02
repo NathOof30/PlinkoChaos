@@ -6,13 +6,16 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local configModule = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("BoardConfig")
-local function getConfig()
+local function getConfig(): any
 	local ok, res = pcall(require, configModule)
 	if ok and res and res.Ball then
 		return res
 	end
 	local fn = loadstring((configModule :: ModuleScript).Source)
-	return fn()
+	if fn then
+		return fn()
+	end
+	return require(configModule)
 end
 
 local BallFactory = {}

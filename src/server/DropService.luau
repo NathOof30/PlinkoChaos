@@ -56,6 +56,11 @@ function DropService.Init()
 			end
 		end
 
+		if not targetSlotIndex then
+			return
+		end
+		local finalSlotIndex: number = targetSlotIndex
+
 		-- 2. Vérification économique (10 pièces par drop)
 		if not PlayerDataService.HasEnoughCoins(player, dropCost) then
 			local currentCoins = PlayerDataService.GetCoins(player)
@@ -68,7 +73,7 @@ function DropService.Init()
 
 		-- 3. Déduction monétaire et verrouillage du Slot en état "Dropping"
 		PlayerDataService.RemoveCoins(player, dropCost)
-		PlayerDataService.SetSlotState(player, targetSlotIndex, "Dropping")
+		PlayerDataService.SetSlotState(player, finalSlotIndex, "Dropping")
 		PlayerDataService.RegisterDrop(player)
 
 		-- 4. Validation de la position de lâcher
@@ -82,14 +87,14 @@ function DropService.Init()
 
 		-- 5. Récupération du type de bille du Deck et instanciation
 		local deck = PlayerDataService.GetDeck(player)
-		local slotInfo = deck and deck[targetSlotIndex]
+		local slotInfo = deck and deck[finalSlotIndex]
 		local ballType = (slotInfo and slotInfo.ballType) or "Standard"
 
 		local ball = BallFactory.CreateBall(ballType, player, offset)
-		ball:SetAttribute("DeckSlotIndex", targetSlotIndex)
+		ball:SetAttribute("DeckSlotIndex", finalSlotIndex)
 
 		local remaining = PlayerDataService.GetCoins(player)
-		print(string.format("[PlinkoChaos] 🟢 Bille #%d (%s) lâchée par %s (-%d pièces, reste: %d)", targetSlotIndex, ballType, player.Name, dropCost, remaining))
+		print(string.format("[PlinkoChaos] 🟢 Bille #%d (%s) lâchée par %s (-%d pièces, reste: %d)", finalSlotIndex, ballType, player.Name, dropCost, remaining))
 	end)
 
 	-- Recharge de secours si le joueur est à sec

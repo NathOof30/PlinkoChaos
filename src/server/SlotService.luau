@@ -36,21 +36,30 @@ local function onSlotTouched(pad: Part, hit: BasePart)
 	-- Capture de la position exacte de la bille pour l'effet de particule flottante
 	local hitPosition = hit.Position
 
-	local multiplier = pad:GetAttribute("Multiplier") or 1
-	local slotLabel = pad:GetAttribute("SlotLabel") or "x?"
-	local slotIndex = pad:GetAttribute("SlotIndex") or 0
-	local baseValue = hit:GetAttribute("BaseValue") or 10
-	local ownerUserId = hit:GetAttribute("OwnerUserId") or 0
-	local ballId = hit:GetAttribute("BallId") or "unknown"
-	local deckSlotIndex = hit:GetAttribute("DeckSlotIndex")
+	local multiplier: number = (pad:GetAttribute("Multiplier") :: number?) or 1
+	local slotLabel: string = (pad:GetAttribute("SlotLabel") :: string?) or "x?"
+	local slotIndex: number = (pad:GetAttribute("SlotIndex") :: number?) or 0
+	local baseValue: number = (hit:GetAttribute("BaseValue") :: number?) or 10
+	local ownerUserId: number = (hit:GetAttribute("OwnerUserId") :: number?) or 0
+	local ballId: string = (hit:GetAttribute("BallId") :: string?) or "unknown"
+	local deckSlotIndex = hit:GetAttribute("DeckSlotIndex") :: number?
 
 	local isPenalty = (multiplier < 1)
-	local amount = 0
-	local amountText = ""
+	local amount: number = 0
+	local amountText: string = ""
 
-	local player = Players:GetPlayerByUserId(ownerUserId)
-	local ownerNameAttr = hit:GetAttribute("OwnerName")
-	local playerName = player and (player.DisplayName or player.Name) or (ownerNameAttr or (ownerUserId == 0 and "Serveur/Test" or string.format("Joueur_%d", ownerUserId)))
+	local player: Player? = if ownerUserId > 0 then Players:GetPlayerByUserId(ownerUserId) else nil
+	local ownerNameAttr = hit:GetAttribute("OwnerName") :: string?
+	local playerName: string
+	if player then
+		playerName = player.DisplayName or player.Name
+	elseif ownerNameAttr and ownerNameAttr ~= "" then
+		playerName = ownerNameAttr
+	elseif ownerUserId == 0 then
+		playerName = "Serveur/Test"
+	else
+		playerName = string.format("Joueur_%d", ownerUserId)
+	end
 
 	if isPenalty then
 		-- Bille x0.5 : restitution de 5 pièces sur les 10 dépensées au drop (perte nette de 5 pièces)
@@ -150,17 +159,17 @@ function SlotService.Init()
 				local now = os.clock()
 				for _, ball in ipairs(activeFolder:GetChildren()) do
 					if ball:IsA("BasePart") then
-						local spawnTime = ball:GetAttribute("SpawnTime")
-						local deckSlotIndex = ball:GetAttribute("DeckSlotIndex")
-						local ownerUserId = ball:GetAttribute("OwnerUserId")
-						local player = ownerUserId and Players:GetPlayerByUserId(ownerUserId)
+						local spawnTime = ball:GetAttribute("SpawnTime") :: number?
+						local deckSlotIndex = ball:GetAttribute("DeckSlotIndex") :: number?
+						local ownerUserId = ball:GetAttribute("OwnerUserId") :: number?
+						local player = if ownerUserId and ownerUserId > 0 then Players:GetPlayerByUserId(ownerUserId) else nil
 						local pos = ball.Position
 
 						local isOutOfBounds = (pos.Y < bottomLimit) or (pos.Y > topLimit)
 							or (math.abs(pos.X - center.X) > xLimit)
 							or (math.abs(pos.Z - center.Z) > 8)
 
-						local isTimedOut = spawnTime and (now - spawnTime > maxLifetime)
+						local isTimedOut = spawnTime ~= nil and (now - spawnTime > maxLifetime)
 
 						if (isOutOfBounds or isTimedOut) and ball:GetAttribute("Processed") ~= true then
 							ball:SetAttribute("Processed", true)

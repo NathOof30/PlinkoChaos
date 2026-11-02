@@ -3,13 +3,16 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local configModule = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("BoardConfig")
-local function getConfig()
+local function getConfig(): any
 	local ok, res = pcall(require, configModule)
 	if ok and res and res.Pyramid then
 		return res
 	end
 	local fn = loadstring((configModule :: ModuleScript).Source)
-	return fn()
+	if fn then
+		return fn()
+	end
+	return require(configModule)
 end
 
 local BoardBuilder = {}

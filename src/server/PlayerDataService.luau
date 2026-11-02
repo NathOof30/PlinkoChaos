@@ -2,16 +2,18 @@
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 
 local configModule = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("BoardConfig")
-local function getConfig()
+local function getConfig(): any
 	local ok, res = pcall(require, configModule)
 	if ok and res and res.Economy then
 		return res
 	end
 	local fn = loadstring((configModule :: ModuleScript).Source)
-	return fn()
+	if fn then
+		return fn()
+	end
+	return require(configModule)
 end
 
 local Network = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Network"))
@@ -99,20 +101,32 @@ end
 -- Synchronisation du leaderboard natif Roblox
 local function setupLeaderstats(player: Player, data: PlayerData)
 	local leaderstats = player:FindFirstChild("leaderstats")
-	if not leaderstats then
-		leaderstats = Instance.new("Folder")
-		leaderstats.Name = "leaderstats"
-		leaderstats.Parent = player
+	if not leaderstats or not leaderstats:IsA("Folder") then
+		local newFolder = Instance.new("Folder")
+		newFolder.Name = "leaderstats"
+		newFolder.Parent = player
+		leaderstats = newFolder
 	end
 
-	local coinsValue = leaderstats:FindFirstChild("Pièces") :: IntValue
-	if not coinsValue then
-		coinsValue = Instance.new("IntValue")
-		coinsValue.Name = "Pièces"
-		coinsValue.Value = data.Coins
-		coinsValue.Parent = leaderstats
+	local folder = leaderstats :: Folder
+	local coinsValue = folder:FindFirstChild("Pièces")
+	if not coinsValue or not coinsValue:IsA("IntValue") then
+		local newCoins = Instance.new("IntValue")
+		newCoins.Name = "Pièces"
+		newCoins.Value = data.Coins
+		newCoins.Parent = folder
 	else
 		coinsValue.Value = data.Coins
+	end
+end
+
+local function updatePlayerLeaderstatsCoins(player: Player, coins: number)
+	local leaderstats = player:FindFirstChild("leaderstats")
+	if leaderstats and leaderstats:IsA("Folder") then
+		local coinsVal = leaderstats:FindFirstChild("Pièces")
+		if coinsVal and coinsVal:IsA("IntValue") then
+			coinsVal.Value = coins
+		end
 	end
 end
 
@@ -496,11 +510,7 @@ function PlayerDataService.UnlockBlueprint(player: Player, blueprintId: string):
 	data.Coins -= cost
 	data.Blueprints[blueprintId] = true
 
-	local leaderstats = player:FindFirstChild("leaderstats")
-	local coinsVal = leaderstats and leaderstats:FindFirstChild("Pièces") :: IntValue?
-	if coinsVal then
-		coinsVal.Value = data.Coins
-	end
+	updatePlayerLeaderstatsCoins(player, data.Coins)
 
 	PlayerDataService.SyncInventory(player)
 	return true, string.format("Plan de fabrication '%s' débloqué avec succès !", bpConfig.Name)
@@ -529,12 +539,7 @@ function PlayerDataService.AddCoins(player: Player, amount: number)
 	end
 
 	data.Coins += amount
-
-	local leaderstats = player:FindFirstChild("leaderstats")
-	local coinsVal = leaderstats and leaderstats:FindFirstChild("Pièces") :: IntValue?
-	if coinsVal then
-		coinsVal.Value = data.Coins
-	end
+	updatePlayerLeaderstatsCoins(player, data.Coins)
 
 	PlayerDataService.SyncInventory(player)
 end
@@ -550,12 +555,7 @@ function PlayerDataService.RemoveCoins(player: Player, amount: number): boolean
 	end
 
 	data.Coins = math.max(0, data.Coins - amount)
-
-	local leaderstats = player:FindFirstChild("leaderstats")
-	local coinsVal = leaderstats and leaderstats:FindFirstChild("Pièces") :: IntValue?
-	if coinsVal then
-		coinsVal.Value = data.Coins
-	end
+	updatePlayerLeaderstatsCoins(player, data.Coins)
 
 	PlayerDataService.SyncInventory(player)
 	return true
@@ -609,11 +609,7 @@ function PlayerDataService.Init()
 				local data = sessionCache[player.UserId]
 				if data then
 					data.Coins += 1
-					local leaderstats = player:FindFirstChild("leaderstats")
-					local coinsVal = leaderstats and leaderstats:FindFirstChild("Pièces") :: IntValue?
-					if coinsVal then
-						coinsVal.Value = data.Coins
-					end
+					updatePlayerLeaderstatsCoins(player, data.Coins)
 				end
 			end
 		end
